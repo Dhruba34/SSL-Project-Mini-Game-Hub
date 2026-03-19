@@ -1,6 +1,6 @@
 import pygame
-
-class Button:
+from abc import ABC, abstractmethod
+class Button(ABC):
     def __init__(self, text, x, y, w, h, font):
         self.rect = pygame.Rect(x, y, w, h)
         self.text = text
@@ -64,7 +64,7 @@ class Menu:
             return 3
 
 
-class Board:
+class Board(ABC):
     def __init__(self,player1,player2,width,height,stats):
         self.player1=player1
         self.player2=player2
@@ -76,34 +76,44 @@ class Board:
         self.bg=pygame.transform.scale(self.bg,(self.width,self.height))
     def page(self):
         self.screen.blit(self.bg,(0,0))
+    
+    def play(self):
+        pass
 
+if __name__=="__main__":
+    from games.tictactoe import Tictactoe
 
+    pygame.init()
+    pygame.display.set_caption("Game Point")
+    icon=pygame.transform.scale(pygame.image.load("./pictures/icon.png"),(64,64))
+    pygame.display.set_icon(icon)
 
-pygame.init()
-pygame.display.set_caption("Game Point")
-icon=pygame.transform.scale(pygame.image.load("./pictures/icon.png"),(64,64))
-pygame.display.set_icon(icon)
-
-width=800
-height=400
-board=Board("a","b",width,height,None)
-menu=Menu(width,height)
-running=True
-while running:
-    for event in pygame.event.get():
-        if(event.type==pygame.QUIT):
-            running=False
-        elif(event.type==pygame.VIDEORESIZE):
-            board.width,board.height=event.w,event.h
-            board.screen=pygame.display.set_mode((board.width,board.height),pygame.RESIZABLE)
-            board.bg=pygame.transform.scale(board.bg,(board.width,board.height))
-    board.page()
-    o=menu.draw(board.screen,event)
-    if(o==0):
-        board.tictactoe()
-    elif(o==1):
-        board.othello()
-    elif(o==2):
-        board.connect4()
-    pygame.display.flip()
-pygame.quit()
+    width=800
+    height=400
+    board=Board("a","b",width,height,None)
+    menu=Menu(width,height)
+    running=True
+    is_menu=True
+    tic=Tictactoe(width,height,board.screen)
+    o=3
+    while running:
+        event = pygame.event.Event(pygame.NOEVENT)
+        for event in pygame.event.get():
+            if(event.type==pygame.QUIT):
+                running=False
+            elif(event.type==pygame.VIDEORESIZE):
+                board.width,board.height=event.w,event.h
+                board.screen=pygame.display.set_mode((board.width,board.height),pygame.RESIZABLE)
+                board.bg=pygame.transform.scale(board.bg,(board.width,board.height))
+                menu=Menu(board.width,board.height)
+        board.page()
+        if is_menu:
+            o=menu.draw(board.screen,event)
+            if(o!=3):
+                is_menu=False
+        else:
+            if(o==0):
+                tic.play(1,event)
+            
+        pygame.display.flip()
+    pygame.quit()
