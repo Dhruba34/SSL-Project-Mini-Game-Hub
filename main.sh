@@ -11,18 +11,19 @@ if [ ! -f ./users.tsv ]; then touch users.tsv; fi
 #--------------------------------------------------------------------------------
 #Taking input for user_1
 echo "Enter username for user_1"
-read n1
+read u1
+n1=$(echo $u1 | sha256sum) #This should handle issues of special characters
 #End input for user_1
 #--------------------------------------------------------------------------------
 #Name existence for user_1
-l1=$(grep $n1 users.tsv)
+l1=$(grep -E "^$n1	" users.tsv)
 if [ $? -eq 0 ]; then v1=1; else v1=0; fi
 #Name existence for user_1
 #--------------------------------------------------------------------------------
 #Conditional stuff for user_1
 if [ $v1 -eq 1 ]; then
 	#check hashed password
-	h1=$(echo -e "${l1}" | cut -d$'\t' -f 2)
+	h1=$(echo -e "${l1#$n1	}")
 	i=0
 	while [ $i -lt $num_attempts ]; do
 		echo "Password for user_1"
@@ -72,19 +73,33 @@ fi
 #End Conditional stuff for user_1
 #--------------------------------------------------------------------------------
 #Taking input for user_2
-echo "Enter username for user_2"
-read n2
+i=0
+while [ $i -lt $num_attempts ]; do
+	echo "Enter username for user_2"
+	read u2
+	if [ "$u2" != "$u1" ]; then
+		break
+	else
+		i=$(($i+1))
+		echo "user_2 may not have same username as user_1. $((${num_attempts}-${i})) attempts left."
+		if [[ $i -eq ${num_attempts} ]]; then
+			echo "You took too many attempts. Exiting..."
+			exit
+		fi
+	fi
+done
+n2=$(echo $u2 | sha256sum)
 #End input for user_2
 #--------------------------------------------------------------------------------
 #Name existence for user_2
-l2=$(grep $n2 users.tsv)
+l2=$(grep -E "^$n2	" users.tsv)
 if [ $? -eq 0 ]; then v2=1; else v2=0; fi
 #Name existence for user_2
 #--------------------------------------------------------------------------------
 #Conditional stuff for user_2
 if [ $v2 -eq 1 ]; then
 	#check hashed password
-	h2=$(echo -e "${l2}" | cut -d$'\t' -f 2)
+	h2=$(echo -e "${l2#$n2	}")
 	i=0
 	while [ $i -lt $num_attempts ]; do
 		echo "Password for user_2"
@@ -135,6 +150,6 @@ fi
 #--------------------------------------------------------------------------------
 #Conditionally calling game.py
 if [[ v1 && v2 ]]; then
-	python3 game.py ${n1} ${n2}
+	python3 game.py "${u1}" "${u2}"
 fi
 #EOF
