@@ -64,7 +64,7 @@ else
 			read -s p1
 			echo "Confirm Password"
 			read -s pc1
-			if [ $pc1 == $p1 ]; then
+			if [ "$pc1" == "$p1" ]; then
 				hp1=$(echo $p1 | sha256sum)
 				echo -e "${n1}\t${hp1}" >> users.tsv
 				break
@@ -148,7 +148,7 @@ else
 			read -s p2
 			echo "Confirm Password"
 			read -s pc2
-			if [ $pc2 == $p2 ]; then
+			if [ "$pc2" == "$p2" ]; then
 				hp2=$(echo $p2 | sha256sum)
 				echo -e "${n2}\t${hp2}" >> users.tsv
 				break
