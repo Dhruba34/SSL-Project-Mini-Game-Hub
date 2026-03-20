@@ -10,15 +10,27 @@ readonly num_attempts=3
 if [ ! -f ./users.tsv ]; then touch users.tsv; fi
 #--------------------------------------------------------------------------------
 #Taking input for user_1
-echo "Enter username for user_1"
-read u1
+i=0
+while [ $i -lt $num_attempts ]; do
+	echo "Enter username for user_1"
+	read u1
+	if [ "$u1" != "" ]; then break
+	else
+		i=$(($i+1))
+		echo "Username may not be empty. $((${num_attempts}-${i})) attempts left."
+		if [[ $i -eq ${num_attempts} ]]; then
+			echo "You took too many attempts. Exiting..."
+			exit #exits script
+		fi
+	fi
+done
 n1=$(echo $u1 | sha256sum) #This should handle issues of special characters
 #End input for user_1
 #--------------------------------------------------------------------------------
 #Name existence for user_1
 l1=$(grep -E "^$n1	" users.tsv)
 if [ $? -eq 0 ]; then v1=1; else v1=0; fi
-#Name existence for user_1
+#End Name existence for user_1
 #--------------------------------------------------------------------------------
 #Conditional stuff for user_1
 if [ $v1 -eq 1 ]; then
@@ -78,7 +90,15 @@ while [ $i -lt $num_attempts ]; do
 	echo "Enter username for user_2"
 	read u2
 	if [ "$u2" != "$u1" ]; then
-		break
+		if [ "$u2" != "" ]; then break
+		else
+			i=$(($i+1))
+			echo "Username may not be empty. $((${num_attempts}-${i})) attempts left."
+			if [[ $i -eq ${num_attempts} ]]; then
+				echo "You took too many attempts. Exiting..."
+				exit #exits script
+			fi
+		fi
 	else
 		i=$(($i+1))
 		echo "user_2 may not have same username as user_1. $((${num_attempts}-${i})) attempts left."
@@ -94,7 +114,7 @@ n2=$(echo $u2 | sha256sum)
 #Name existence for user_2
 l2=$(grep -E "^$n2	" users.tsv)
 if [ $? -eq 0 ]; then v2=1; else v2=0; fi
-#Name existence for user_2
+#End existence for user_2
 #--------------------------------------------------------------------------------
 #Conditional stuff for user_2
 if [ $v2 -eq 1 ]; then
