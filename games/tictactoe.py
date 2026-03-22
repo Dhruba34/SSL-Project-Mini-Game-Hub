@@ -72,6 +72,7 @@ class Tictactoe(Board):
         self.playing_board=draw(width,height,screen)
         self.board=np.zeros((10,10))
         self.screen=screen
+        self.turn=1
     def play(self, turn, event=None):
         self.playing_board.draw_board(self.board)  # always redraw full board
 
@@ -89,60 +90,64 @@ class Tictactoe(Board):
 
             if row != -1 and self.board[row][col] == 0:
                 self.board[row][col] = turn  # update board STATE
-                
-
-
-
-'''import pygame
-import sys
-
-pygame.init()
-
-WIDTH, HEIGHT = 700, 700
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Rounded Grid")
-
-BG = (20, 20, 20)
-TILE_COLOR = (40, 40, 40)
-HOVER_COLOR = (70, 70, 70)
-
-ROWS, COLS = 10, 10
-PADDING = 6   # space between tiles
-RADIUS = 10   # corner roundness
-
-cell_size = (WIDTH - (COLS + 1) * PADDING) // COLS
-
-def draw_grid():
-    mx, my = pygame.mouse.get_pos()
-
-    for i in range(ROWS):
-        for j in range(COLS):
-
-            x = PADDING + j * (cell_size + PADDING)
-            y = PADDING + i * (cell_size + PADDING)
-
-            rect = pygame.Rect(x, y, cell_size, cell_size)
-
-            # Hover effect
-            if rect.collidepoint(mx, my):
-                color = HOVER_COLOR
+                return True
+        return False
+    def win_check(self,turn):
+        if self.check_hori_vert(turn):
+            return turn
+        if self.check_diagonal(turn):
+            return turn
+        if self.check_draw():
+            return "draw"
+        return "none"
+    def check_hori_vert(self,turn):
+        for i in range(10):
+            cr=0
+            maxir=0
+            maxic=0
+            cc=0
+            for j in range(10):
+                if self.board[i][j]==turn:
+                    cr+=1
+                    maxir=max(maxir,cr)
+                else:
+                    cr=0
+                if self.board[j][i]==turn:
+                    cc+=1
+                    maxic=max(maxic,cc)
+            if maxir>=5 or maxic>=5:
+                return True
+        return False
+    def check_diagonal(self,turn):
+        for i in range(-9,10):
+            c=0
+            maxi=0
+            d=0
+            maxi2=0
+            for j in range(max(-i,0),min(10,10-i)):
+                if self.board[i+j][j]==turn:
+                    c+=1
+                    maxi=max(maxi,c)
+                else:
+                    c=0
+                if self.board[i+j][9-j]==turn:
+                    d+=1
+                    maxi2=max(maxi2,d)
+            if maxi>=5 or maxi2>=5:
+                return True
+        return False
+    def check_draw(self):
+        for i in range(10):
+            for j in range(10):
+                if self.board[i][j]==0:
+                    return False
+        return True
+    def turn_change(self,changed):
+        if changed:
+            if self.turn==1:
+                self.turn=2
             else:
-                color = TILE_COLOR
+                self.turn=1
 
-            pygame.draw.rect(
-                screen,
-                color,
-                rect,
-                border_radius=RADIUS
-            )
 
-while True:
-    screen.fill(BG)
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-
-    draw_grid()
-    pygame.display.update()'''

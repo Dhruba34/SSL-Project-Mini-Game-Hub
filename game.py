@@ -1,6 +1,6 @@
 import pygame
 from abc import ABC, abstractmethod
-class Button(ABC):
+class Button:
     def __init__(self, text, x, y, w, h, font):
         self.rect = pygame.Rect(x, y, w, h)
         self.text = text
@@ -79,6 +79,10 @@ class Board(ABC):
     
     def play(self):
         pass
+    def win_check(self):
+        pass
+    def turn_change(self):
+        pass
 
 if __name__=="__main__":
     from games.tictactoe import Tictactoe
@@ -106,6 +110,7 @@ if __name__=="__main__":
                 board.screen=pygame.display.set_mode((board.width,board.height),pygame.RESIZABLE)
                 board.bg=pygame.transform.scale(board.bg,(board.width,board.height))
                 menu=Menu(board.width,board.height)
+                
         board.page()
         if is_menu:
             o=menu.draw(board.screen,event)
@@ -113,7 +118,13 @@ if __name__=="__main__":
                 is_menu=False
         else:
             if(o==0):
-                tic.play(1,event)
-            
+                changed=tic.play(tic.turn,event)
+                winner=tic.win_check(tic.turn)
+                tic.turn_change(changed)
+                if winner!="none":
+                    if winner=="draw":
+                        print("its a draw")
+                    else:
+                        print("winner is player",winner)
         pygame.display.flip()
     pygame.quit()
