@@ -9,7 +9,10 @@ class Button:
         self.base_color = (50, 120, 200)
         self.hover_color = (80, 160, 255)
         self.current_color = self.base_color
-
+    def assign(self,text,x,y,w,h,font):
+        self.rect=pygame.Rect(x,y,w,h)
+        self.text=text
+        self.font=font
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
             if self.rect.collidepoint(event.pos):
@@ -74,9 +77,36 @@ class Board(ABC):
         self.height=height
         self.bg=pygame.image.load("./pictures/background.png")
         self.bg=pygame.transform.scale(self.bg,(self.width,self.height))
+        self.return_menu=Button("",0,0,0,0,None)
     def page(self):
         self.screen.blit(self.bg,(0,0))
     
+    def draw_results(self,rect,text,color,text_color,event,font1="Consolas",size=30):
+        pygame.draw.rect(self.screen, color, rect)
+        font = pygame.font.SysFont(font1, size, bold=True)
+        line1 = font.render("Game Over!", True, text_color)
+        line2 = font.render(text, True, text_color)
+        x,y,w,h=rect.x,rect.y,rect.w,rect.h
+        line1_rect = pygame.Rect(x+int(w*0.25),y+int(0.1*h),w//2,h//4)
+        line2_rect = pygame.Rect(x+w//4,y+h//2,int(w*0.75),h//4)
+        self.screen.blit(line1, line1_rect)
+        self.screen.blit(line2, line2_rect)
+        font=pygame.font.SysFont(font1,int(size*0.5),bold=True)
+        self.return_menu.assign("Go to stats",int(x+0.5*w),int(y+0.7*h),int(w*0.4),int(h*0.2),font)
+        self.return_menu.draw(self.screen)
+        self.return_menu.handle_event(event)
+        
+    def show_results(self,winner,obj,event):
+        if winner==0:
+            rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
+            self.draw_results(rect,"DRAW",(192,192,192),(255,255,255),event,size=0.1*obj.playing_board.width)
+        elif winner==1:
+            rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
+            self.draw_results(rect,"WINNER: "+self.player1,(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
+        else:
+            rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
+            self.draw_results(rect,"WINNER: "+self.player2,(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
+
     def play(self):
         pass
     def win_check(self):
@@ -100,6 +130,9 @@ if __name__=="__main__":
     is_menu=True
     tic=Tictactoe(width,height,board.screen)
     o=3
+    results=False
+    stats=False
+    final_result=0
     while running:
         event = pygame.event.Event(pygame.NOEVENT)
         for event in pygame.event.get():
@@ -110,21 +143,23 @@ if __name__=="__main__":
                 board.screen=pygame.display.set_mode((board.width,board.height),pygame.RESIZABLE)
                 board.bg=pygame.transform.scale(board.bg,(board.width,board.height))
                 menu=Menu(board.width,board.height)
-                
+                tic.maximize(board.width,board.height,board.screen)
         board.page()
         if is_menu:
             o=menu.draw(board.screen,event)
             if(o!=3):
                 is_menu=False
         else:
-            if(o==0):
+            if results:
+                board.show_results(final_result,tic,event)
+            elif stats:
+                board.show_stats()
+            elif(o==0):
                 changed=tic.play(tic.turn,event)
                 winner=tic.win_check(tic.turn)
                 tic.turn_change(changed)
                 if winner!="none":
-                    if winner=="draw":
-                        print("its a draw")
-                    else:
-                        print("winner is player",winner)
+                    final_result=winner
+                    results=True
         pygame.display.flip()
     pygame.quit()

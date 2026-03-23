@@ -73,6 +73,10 @@ class Tictactoe(Board):
         self.board=np.zeros((10,10))
         self.screen=screen
         self.turn=1
+    def maximize(self,width,height,screen):
+        self.playing_board=draw(width,height,screen)
+        self.playing_board.draw_board(self.board)
+        self.screen=screen
     def play(self, turn, event=None):
         self.playing_board.draw_board(self.board)  # always redraw full board
 
@@ -98,7 +102,7 @@ class Tictactoe(Board):
         if self.check_diagonal(turn):
             return turn
         if self.check_draw():
-            return "draw"
+            return 0
         return "none"
     def check_hori_vert(self,turn):
         for i in range(10):
