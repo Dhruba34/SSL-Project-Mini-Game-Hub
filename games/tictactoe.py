@@ -105,47 +105,29 @@ class Tictactoe(Board):
             return 0
         return "none"
     def check_hori_vert(self,turn):
-        for i in range(10):
-            cr=0
-            maxir=0
-            maxic=0
-            cc=0
-            for j in range(10):
-                if self.board[i][j]==turn:
-                    cr+=1
-                    maxir=max(maxir,cr)
-                else:
-                    cr=0
-                if self.board[j][i]==turn:
-                    cc+=1
-                    maxic=max(maxic,cc)
-            if maxir>=5 or maxic>=5:
-                return True
-        return False
+        mask = (self.board == turn).astype(int)
+
+        # Horizontal: stack shifted versions and sum across axis
+        h = mask[:, 0:6] + mask[:, 1:7] + mask[:, 2:8] + mask[:, 3:9] + mask[:, 4:10]
+        
+        # Vertical: same but along rows
+        v = mask[0:6, :] + mask[1:7, :] + mask[2:8, :] + mask[3:9, :] + mask[4:10, :]
+
+        return bool((h >= 5).any() or (v >= 5).any())
     def check_diagonal(self,turn):
-        for i in range(-9,10):
-            c=0
-            maxi=0
-            d=0
-            maxi2=0
-            for j in range(max(-i,0),min(10,10-i)):
-                if self.board[i+j][j]==turn:
-                    c+=1
-                    maxi=max(maxi,c)
-                else:
-                    c=0
-                if self.board[i+j][9-j]==turn:
-                    d+=1
-                    maxi2=max(maxi2,d)
-            if maxi>=5 or maxi2>=5:
-                return True
-        return False
+        mask = (self.board == turn).astype(int)
+
+        # Main diagonal (top-left to bottom-right): shift down+right
+        d1 = (mask[0:6, 0:6] + mask[1:7, 1:7] + mask[2:8, 2:8] + 
+            mask[3:9, 3:9] + mask[4:10, 4:10])
+
+        # Anti diagonal (top-right to bottom-left): shift down+left
+        d2 = (mask[0:6, 4:10] + mask[1:7, 3:9] + mask[2:8, 2:8] + 
+            mask[3:9, 1:7] + mask[4:10, 0:6])
+
+        return bool((d1 >= 5).any() or (d2 >= 5).any())
     def check_draw(self):
-        for i in range(10):
-            for j in range(10):
-                if self.board[i][j]==0:
-                    return False
-        return True
+        return bool((self.board != 0).all())
     def turn_change(self,changed):
         if changed:
             if self.turn==1:
