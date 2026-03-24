@@ -1,5 +1,7 @@
 import pygame
-from abc import ABC, abstractmethod
+import numpy as np
+import time
+import os
 class Button:
     def __init__(self, text, x, y, w, h, font):
         self.rect = pygame.Rect(x, y, w, h)
@@ -37,6 +39,46 @@ class Button:
             ),
         )
 
+class RadioButton:
+    def __init__(self, x, y, rect_width,text,font_name="Consolas", font_size=22,
+                 text_color=(255,255,255), selected_color=(70, 130, 180),
+                 unselected_color=(100, 100, 100), radius=10):
+        self.x = x
+        self.y = y
+        self.text = text
+        font_size=int(18/320*rect_width)
+        self.font = pygame.font.SysFont(font_name, font_size)
+        self.text_color = text_color
+        self.selected_color = selected_color
+        self.unselected_color = unselected_color
+        self.radius = radius
+        self.selected = False
+        self.rect=None
+    def assign(self,x,y,rect_width,text,font_name="Consolas",font_size=22,text_color=(255,255,255),selected_color=(70,130,180),
+               unselected_color=(100,100,100),radius=10):
+        self.x = x
+        self.y = y
+        self.text = text
+        font_size=int(18/320*rect_width)
+        self.font = pygame.font.SysFont(font_name, font_size)
+        self.text_color = text_color
+        self.selected_color = selected_color
+        self.unselected_color = unselected_color
+        self.radius = radius
+
+    def select(self):
+        self.selected = True
+    def deselect(self):
+        self.selected = False
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, self.unselected_color, (self.x, self.y), self.radius, 2)
+        if self.selected:
+            pygame.draw.circle(screen, self.selected_color, (self.x, self.y), self.radius // 2 + 2)
+        text_surf = self.font.render(self.text, True, self.text_color)
+        self.rect=pygame.Rect(self.x-self.radius,self.y-self.radius,self.radius*2+10+text_surf.get_width(),max(self.radius*2,text_surf.get_height()))
+        screen.blit(text_surf, (self.x + self.radius + 10, self.y - text_surf.get_height() // 2))
+
 class Menu:
     def __init__(self,width,height):
         self.width=width
@@ -67,7 +109,7 @@ class Menu:
             return 3
 
 
-class Board(ABC):
+class Board:
     def __init__(self,player1,player2,width,height,stats):
         self.player1=player1
         self.player2=player2
@@ -77,7 +119,14 @@ class Board(ABC):
         self.height=height
         self.bg=pygame.image.load("./pictures/background.png")
         self.bg=pygame.transform.scale(self.bg,(self.width,self.height))
-        self.return_menu=Button("",0,0,0,0,None)
+        self.leaderboard=Button("",0,0,0,0,None)
+        self.board=None
+        self.o1=RadioButton(0,0,0,"")
+        self.o1.selected=True
+        self.o2=RadioButton(0,0,0,"")
+        self.o3=RadioButton(0,0,0,"")
+        self.ldb_but=Button("",0,0,0,0,None)
+        self.charts=Button("",0,0,0,0,None)
     def page(self):
         self.screen.blit(self.bg,(0,0))
     
@@ -92,20 +141,68 @@ class Board(ABC):
         self.screen.blit(line1, line1_rect)
         self.screen.blit(line2, line2_rect)
         font=pygame.font.SysFont(font1,int(size*0.5),bold=True)
-        self.return_menu.assign("Go to stats",int(x+0.5*w),int(y+0.7*h),int(w*0.4),int(h*0.2),font)
-        self.return_menu.draw(self.screen)
-        self.return_menu.handle_event(event)
+        self.leaderboard.assign("Leaderboard",int(x+0.5*w),int(y+0.7*h),int(w*0.4),int(h*0.2),font)
+        self.leaderboard.draw(self.screen)
+        return self.leaderboard.handle_event(event)
         
     def show_results(self,winner,obj,event):
+        check=False
         if winner==0:
             rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
-            self.draw_results(rect,"DRAW",(192,192,192),(255,255,255),event,size=0.1*obj.playing_board.width)
+            check=self.draw_results(rect,"DRAW",(192,192,192),(255,255,255),event,size=0.1*obj.playing_board.width)
         elif winner==1:
             rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
-            self.draw_results(rect,"WINNER: "+self.player1,(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
+            check=self.draw_results(rect,"WINNER: "+self.player1,(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
         else:
             rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
-            self.draw_results(rect,"WINNER: "+self.player2,(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
+            check=self.draw_results(rect,"WINNER: "+self.player2,(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
+        return check
+
+    def show_leaderboard(self,obj,event):
+        rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
+        pygame.draw.rect(self.screen, (192,192,192), rect)
+        font=pygame.font.SysFont("Consolas",int(rect.w*0.07),bold=True)
+        line=font.render("Sort Mode of Leaderboard",True,(255,255,255))
+        self.screen.blit(line,pygame.Rect((self.width-line.get_width())//2,int(rect.y+rect.h*0.1),line.get_width(),line.get_height()))
+        self.o1.assign(int(rect.w*0.3+rect.x),int(rect.y+0.3*rect.h),rect.w,"No. of Wins")
+        self.o2.assign(int(rect.w*0.3+rect.x),int(rect.y+0.45*rect.h),rect.w,"No. of Losses")
+        self.o3.assign(int(rect.w*0.3+rect.x),int(rect.y+0.6*rect.h),rect.w,"Win/Loss ratio")
+        font=pygame.font.SysFont("Consolas",int(rect.w*0.035),bold=True)
+        self.ldb_but.assign("Generate",int(0.6*rect.w+rect.x),int(0.75*rect.h+rect.y),int(0.35*rect.w),int(0.2*rect.h),font)
+        self.charts.assign("Visualize",int(0.05*rect.w+rect.x),int(rect.y+0.75*rect.h),int(0.45*rect.w),int(0.2*rect.h),font)
+        self.o1.draw(self.screen)
+        self.o2.draw(self.screen)
+        self.o3.draw(self.screen)
+        self.ldb_but.draw(self.screen)
+        self.charts.draw(self.screen)
+        rect1=self.o1.rect
+        rect2=self.o2.rect
+        rect3=self.o3.rect
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if rect1.collidepoint(event.pos):
+                self.o1.select()
+                self.o2.deselect()
+                self.o3.deselect()
+            elif rect2.collidepoint(event.pos):
+                self.o1.deselect()
+                self.o2.select()
+                self.o3.deselect()
+            elif rect3.collidepoint(event.pos):
+                self.o1.deselect()
+                self.o2.deselect()
+                self.o3.select()
+        if self.charts.handle_event(event):
+            return True
+        if self.ldb_but.handle_event(event):
+            if(self.o1.selected):
+                os.system("bash leaderboard.sh win")
+            elif(self.o2.selected):
+                os.system("bash leaderboard.sh loss")
+            else:
+                os.system("bash leaderboard.sh ratio")
+        return False
+
+
 
     def play(self):
         pass
@@ -132,6 +229,7 @@ if __name__=="__main__":
     o=3
     results=False
     stats=False
+    charts=False
     final_result=0
     while running:
         event = pygame.event.Event(pygame.NOEVENT)
@@ -151,9 +249,19 @@ if __name__=="__main__":
                 is_menu=False
         else:
             if results:
-                board.show_results(final_result,tic,event)
+                if o==0:
+                    obj=tic
+                if board.show_results(final_result,obj,event):
+                    results=False
+                    stats=True
             elif stats:
-                board.show_stats()
+                if o==0:
+                    obj=tic
+                if board.show_leaderboard(obj,event):
+                    stats=False
+                    charts=True
+            #elif charts:
+
             elif(o==0):
                 changed=tic.play(tic.turn,event)
                 winner=tic.win_check(tic.turn)
@@ -161,5 +269,14 @@ if __name__=="__main__":
                 if winner!="none":
                     final_result=winner
                     results=True
+                    with open("history.csv", "a") as f:
+                        today = time.strftime("%d-%m-%Y")
+                        if winner==0:
+                            f.write("DRAW,"+board.player1+","+board.player2+","+"NA,NA,"+str(today)+",TicTacToe\n")
+                        elif winner==1:
+                            f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player1+","+board.player2+","+str(today)+",TicTacToe\n")
+                        else:
+                            f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player2+","+board.player1+","+str(today)+",TicTacToe\n")
+       
         pygame.display.flip()
     pygame.quit()
