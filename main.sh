@@ -55,7 +55,7 @@ if [ $v1 -eq 1 ]; then
 else
 	#sign up
 	echo "Username not found. Do you wish to sign up?"
-	echo "If yes, press \'y\' and then press \'Enter\' or \'Return\'. Otherwise, enter a random string which isn't \'y\'"
+	echo "If yes, press 'y' and then press 'Enter' or 'Return'. Otherwise, enter a random string which isn't 'y'"
 	read reg
 	if [ $reg == 'y' ]; then
 		i=0
@@ -139,7 +139,7 @@ if [ $v2 -eq 1 ]; then
 else
 	#sign up
 	echo "Username not found. Do you wish to sign up?"
-	echo "If yes, press \'y\' and then press \'Enter\' or \'Return\'. Otherwise, enter a random string which isn't \'y\'"
+	echo "If yes, press 'y' and then press 'Enter' or 'Return'. Otherwise, enter a random string which isn't 'y'"
 	read reg
 	if [ $reg == 'y' ]; then
 		i=0
