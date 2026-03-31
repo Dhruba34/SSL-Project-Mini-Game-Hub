@@ -360,6 +360,7 @@ class Board:
 
 if __name__=="__main__":
     from games.tictactoe import Tictactoe
+    from games.othello import Othello
 
     pygame.init()
     pygame.display.set_caption("Game Point")
@@ -375,6 +376,7 @@ if __name__=="__main__":
     running=True
     is_menu=True
     tic=Tictactoe(width,height,board.screen)
+    oth=Othello(width,height,board.screen)
     o=3
     results=False
     stats=False
@@ -392,6 +394,7 @@ if __name__=="__main__":
                 board.bg=pygame.transform.scale(board.bg,(board.width,board.height))
                 menu=Menu(board.width,board.height)
                 tic.maximize(board.width,board.height,board.screen)
+                oth.maximize(board.width,board.height,board.screen)
         board.page()
         if is_menu:
             o=menu.draw(board.screen,event)
@@ -401,12 +404,16 @@ if __name__=="__main__":
             if results:
                 if o==0:
                     obj=tic
+                elif o==1:
+                    obj=oth
                 if board.show_results(final_result,obj,event):
                     results=False
                     charts=True
             elif stats:
                 if o==0:
                     obj=tic
+                elif o==1:
+                    obj=oth
                 if board.show_leaderboard(obj,event):
                     stats=False
                     charts=True
@@ -417,6 +424,8 @@ if __name__=="__main__":
             elif intermediate:
                 if o==0:
                     obj=tic
+                elif o==1:
+                    obj=oth
                 if board.show_intermediate(obj,event):
                     intermediate=False
                     is_menu=True
@@ -425,20 +434,26 @@ if __name__=="__main__":
                     tic=Tictactoe(width,height,board.screen)
                     o=3
 
-            elif(o==0):
-                changed=tic.play(tic.turn,event)
-                winner=tic.win_check(tic.turn)
-                tic.turn_change(changed)
+            else:
+                if o==0:
+                    obj=tic
+                    str="TicTacToe"
+                elif o==1:
+                    obj=oth
+                    str="Othello"
+                changed=obj.play(obj.turn,event)
+                winner=obj.win_check(obj.turn)
+                obj.turn_change(changed)
                 if winner!="none":
                     final_result=winner
                     results=True
                     with open("history.csv", "a") as f:
                         today = time.strftime("%d-%m-%Y")
                         if winner==0:
-                            f.write("DRAW,"+board.player1+","+board.player2+","+"NA,NA,"+str(today)+",TicTacToe\n")
+                            f.write("DRAW,"+board.player1+","+board.player2+","+"NA,NA,"+str(today)+","+str+"\n")
                         elif winner==1:
-                            f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player1+","+board.player2+","+str(today)+",TicTacToe\n")
+                            f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player1+","+board.player2+","+str(today)+","+str+"\n")
                         else:
-                            f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player2+","+board.player1+","+str(today)+",TicTacToe\n")
+                            f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player2+","+board.player1+","+str(today)+","+str+"\n")
         pygame.display.flip()
     pygame.quit()
