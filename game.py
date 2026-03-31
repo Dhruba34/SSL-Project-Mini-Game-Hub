@@ -2,6 +2,9 @@ import pygame
 import numpy as np
 import time
 import os
+import sys
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 class Button:
     def __init__(self, text, x, y, w, h, font):
         self.rect = pygame.Rect(x, y, w, h)
@@ -127,6 +130,9 @@ class Board:
         self.o3=RadioButton(0,0,0,"")
         self.ldb_but=Button("",0,0,0,0,None)
         self.charts=Button("",0,0,0,0,None)
+        self.fig_no=0
+        self.b1=Button("",0,0,0,0,None)
+        self.b2=Button("",0,0,0,0,None)
     def page(self):
         self.screen.blit(self.bg,(0,0))
     
@@ -149,7 +155,7 @@ class Board:
         check=False
         if winner==0:
             rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
-            check=self.draw_results(rect,"DRAW",(192,192,192),(255,255,255),event,size=0.1*obj.playing_board.width)
+            check=self.draw_results(rect,"DRAW",(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
         elif winner==1:
             rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
             check=self.draw_results(rect,"WINNER: "+self.player1,(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
@@ -202,7 +208,148 @@ class Board:
                 os.system("bash leaderboard.sh ratio")
         return False
 
+    def draw_gauge(self,ax, values, texts, color):
+        gap       = 90
+        total_arc = 360 - gap
+        start_angle = 90 + gap / 2
 
+        filled_frac = [
+            values["win"]  / values["games"],
+            values["loss"] / values["games"],
+            values["draw"] / values["games"],
+        ]
+        filled_deg = list(total_arc * np.array(filled_frac)/360)
+        ring_width = 0.22
+        ax.pie(
+            filled_deg + [gap/360],
+            startangle=start_angle,
+            colors=color + ["none"],
+            wedgeprops=dict(width=ring_width, edgecolor="none"),
+            counterclock=False,
+        )
+        for i in range(len(texts)):
+            ax.text(0,-0.3*(i-(len(texts)-1)/2),texts[i],ha="center",va="center",fontsize=10,fontweight="bold",color="white")
+
+        ax.axis("off")
+
+    def draw_charts(self):
+        stat_store=[{"games":0,"win":0,"loss":0,"draw":0},{"games":0,"win":0,"loss":0,"draw":0}]
+        win_players={}
+        game_counts=[0,0,0]
+        with open("history.csv","r") as f:
+            for line in f:
+                arr=line.split(",")
+                arr[6]=arr[6].removesuffix("\n")
+                if arr[1]==self.player1 or arr[2]==self.player1:
+                    stat_store[0]["games"]+=1
+                    if arr[0]=="DRAW":
+                        stat_store[0]["draw"]+=1
+                    else:
+                        if arr[3]==self.player1:
+                            stat_store[0]["win"]+=1
+                        else:
+                            stat_store[0]["loss"]+=1
+                if arr[1]==self.player2 or arr[2]==self.player2:
+                    stat_store[1]["games"]+=1
+                    if arr[0]=="DRAW":
+                        stat_store[1]["draw"]+=1
+                    else:
+                        if arr[3]==self.player2:
+                            stat_store[1]["win"]+=1
+                        else:
+                            stat_store[1]["loss"]+=1
+                if arr[3] in win_players.keys():
+                    win_players[arr[3]]+=1
+                elif arr[3]!="NA":
+                    win_players[arr[3]]=1
+                #print(arr)
+                if arr[6]=="TicTacToe":
+                    game_counts[0]+=1
+                elif arr[6]=="Othello":
+                    game_counts[1]+=1
+                else:
+                    game_counts[2]+=1
+        
+        #print(game_counts)
+        wingames=sorted(win_players.items(),key=lambda x:x[1],reverse=True)[:5]
+        fig, axes = plt.subplots(2,2)
+        fig.patch.set_facecolor("#0d1b2a")
+
+        colors = ["#00cfcf", "#f97316","#1F7716"]
+
+        games1 = stat_store[0]["games"]
+        games2 = stat_store[1]["games"]
+
+        self.draw_gauge(axes[0][0],stat_store[0],
+                        [f'wins:{stat_store[0]["win"]/games1*100:.2f}',
+                         f'loss:{stat_store[0]["loss"]/games1*100:.2f}',
+                         f'draws:{stat_store[0]["draw"]/games1*100:.2f}'],
+                        colors)
+
+        self.draw_gauge(axes[0][1],stat_store[1],
+                        [f'wins:{stat_store[1]["win"]/games2*100:.2f}',
+                         f'loss:{stat_store[1]["loss"]/games2*100:.2f}',
+                         f'draws:{stat_store[1]["draw"]/games2*100:.2f}'],
+                        colors)
+
+        labels = [i[0] for i in wingames][::-1]
+        values = [i[1] for i in wingames][::-1]
+
+        axes[1][0].bar(labels, values, color="#B74005", width=0.4)
+
+        # Dark background
+        axes[1][0].set_facecolor("#0d1b2a")
+
+        # Axis markings
+        axes[1][0].set_xlabel("Players", color="white", fontsize=10)
+        axes[1][0].set_ylabel("Wins",    color="white", fontsize=10)
+        axes[1][0].set_title("Top 5 Players by Wins", color="white", fontsize=11)
+        axes[1][0].tick_params(labelcolor="white")
+
+        # Clean look
+        for spine in axes[1][0].spines.values():
+            spine.set_visible(False)
+        wedges=axes[1][1].pie(game_counts,colors=["#4fc3f7", "#ce93d8", "#80cbc4"],autopct=lambda pct: f'{pct:.1f}%' if pct > 0 else '')[0]
+        axes[1][1].legend(
+            wedges,
+            ["tictactoe", "othello", "connect4"],   # ← your own custom texts
+            loc="center left",
+            bbox_to_anchor=(1, 0.5), 
+            fontsize=8
+        )
+        return False
+    
+    def on_close(self,event):
+        self.fig_no=-1
+    def show_charts(self):
+        if self.fig_no == 0:
+            self.draw_charts()              # builds charts, no plt.show()
+            fig = plt.gcf()
+            fig.canvas.mpl_connect('close_event', self.on_close)  # ✅ connect BEFORE show
+            self.fig_no = 1
+            plt.show()          # ✅ non-blocking, pygame loop continues
+
+        if self.fig_no == -1:
+            self.fig_no = 0
+            return True
+        return False
+    
+    def show_intermediate(self,obj,event):
+        winw=obj.playing_board.width
+        winh=obj.playing_board.height
+        rect=pygame.Rect((self.width-winw)/2,(self.height-winh)/2,winw,winh)
+        pygame.draw.rect(self.screen,(0,0,0),rect,border_radius=10)
+        font=pygame.font.SysFont("Consolas",int(12*winw/120),bold=True)
+        self.b1.assign("Main Menu",int(self.width//2-0.35*winw),int(self.height//2-0.35*winh),int(0.7*winw),int(0.25*winh),font)
+        self.b2.assign("Quit",int(self.width//2-0.35*winw),int(self.height//2+0.1*winh),int(0.7*winw),int(0.25*winh),font)
+        self.b1.draw(self.screen)
+        self.b2.draw(self.screen)
+        if self.b1.handle_event(event):
+            return True
+        if self.b2.handle_event(event):
+            pygame.quit()
+            sys.exit()
+        return False
 
     def play(self):
         pass
@@ -221,7 +368,9 @@ if __name__=="__main__":
 
     width=800
     height=400
-    board=Board("a","b",width,height,None)
+    player1=argv[1]
+    player2=argv[2]
+    board=Board(argv[1],argv[2],width,height,None)
     menu=Menu(width,height)
     running=True
     is_menu=True
@@ -230,13 +379,14 @@ if __name__=="__main__":
     results=False
     stats=False
     charts=False
+    intermediate=False
     final_result=0
     while running:
         event = pygame.event.Event(pygame.NOEVENT)
         for event in pygame.event.get():
             if(event.type==pygame.QUIT):
                 running=False
-            elif(event.type==pygame.VIDEORESIZE):
+            elif(event.type==pygame.VIDEORESIZE and not charts):
                 board.width,board.height=event.w,event.h
                 board.screen=pygame.display.set_mode((board.width,board.height),pygame.RESIZABLE)
                 board.bg=pygame.transform.scale(board.bg,(board.width,board.height))
@@ -253,14 +403,27 @@ if __name__=="__main__":
                     obj=tic
                 if board.show_results(final_result,obj,event):
                     results=False
-                    stats=True
+                    charts=True
             elif stats:
                 if o==0:
                     obj=tic
                 if board.show_leaderboard(obj,event):
                     stats=False
                     charts=True
-            #elif charts:
+            elif charts:
+                if board.show_charts():
+                    charts=False
+                    intermediate=True
+            elif intermediate:
+                if o==0:
+                    obj=tic
+                if board.show_intermediate(obj,event):
+                    intermediate=False
+                    is_menu=True
+                    board=Board(board.player1,board.player2,width,height,None)
+                    menu=Menu(width,height)
+                    tic=Tictactoe(width,height,board.screen)
+                    o=3
 
             elif(o==0):
                 changed=tic.play(tic.turn,event)
@@ -277,6 +440,5 @@ if __name__=="__main__":
                             f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player1+","+board.player2+","+str(today)+",TicTacToe\n")
                         else:
                             f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player2+","+board.player1+","+str(today)+",TicTacToe\n")
-       
         pygame.display.flip()
     pygame.quit()

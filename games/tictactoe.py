@@ -77,6 +77,8 @@ class Tictactoe(Board):
         self.playing_board=draw(width,height,screen)
         self.playing_board.draw_board(self.board)
         self.screen=screen
+    def reset(self):
+        self.board=np.zeros((10,10))
     def play(self, turn, event=None):
         self.playing_board.draw_board(self.board)  # always redraw full board
 
