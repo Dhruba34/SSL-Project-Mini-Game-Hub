@@ -16,14 +16,11 @@ class Othello(Board):
 		self.boardcol=(0, 102, 51) #Green TODO settings...
 		self.p1tokcol=(211,211,211) #Light gray TODO settings...
 		self.p2tokcol=(85,85,85) #Davy's gray TODO settings...
-		'''
-		Is checking stuff about below even required?
-		#tot. number of tokens per player is 32
+		#tot. number of tokens per player is self.boardsize*self.boardsize/2
 		self.p1used=0
 		self.p2used=0
-		'''
 		#initialising board, turn number and player turn
-		self.boardsize=8
+		self.boardsize=8 #TODO Allow for ideas like small, medium, large boards
 		self.board=np.zeros((self.boardsize, self.boardsize))
 		self.turn_num=1
 		self.turn_p=1
@@ -31,6 +28,8 @@ class Othello(Board):
 		pad=0.04*min_dim
 		min_dim-=2*pad #removing padding from our calculation for board sizes
 		self.sqsize=min_dim/self.boardsize
+		#important param for win_check: check that no turns are left for each player.
+		self.sk=[0,0]
 
 	#TODO Settings for board colours & player token colours
 
@@ -68,21 +67,59 @@ Othello game rules:
 
 '''
 
-	def turn_change(self):
-		if self.turn_p==2:
-			self.turn_num+=1
-		self.turn_p=3-self.turn_p
-		#return self.turn_p
+	def turn_change(self, really):
+		if really:
+			if self.turn_p==2:
+				self.turn_num+=1
+			self.turn_p=3-self.turn_p
 
-	def exists_valid(self): #TODO
-		#Should use the variable self.turn_p
+	def validate_pos(self, i, j): #returns dictionary of 8 positions: in each direction, the nearest token of same colour which is not (i,j). If no such token, that position is set to (i,j)
+		dest_pos=dict()
+		for x in range (i-1, -1, -1): #3 dirns
+			#left horizontal:
+			if self.board[x][j]==self.turn_p and not dest_pos.__contains__("L"):
+				dest_pos["L"]=(x,j)
+			#LB: remember, bottom has higher y
+			if j+x-i<self.boardsize and self.board[x][j+x-i]==self.turn_p and not dest_pos.__contains__("LB"):
+				dest_pos["LB"]=(x,j+x-i)
+			#LT
+			if j-(x-i)>=0 and self.board[x][j-(x-i)]==self.turn_p and not dest_pos.__contains__("LT"):
+				dest_pos["LT"]=(x,j-(x-i))
+		#down:
+		for y in range(j+1, self.boardsize):
+			if self.board[i][y]==self.turn_p: #keycheck not req.d since will break
+				dest_pos["B"]=(i, y)
+		#up:
+		for y in range(j-1, -1, -1):
+			if self.board[i][y]==self.turn_p: #keycheck not req.d since will break
+				dest_pos["T"]=(i, y)
+		for x in range (i+1, self.boardsize): #3 dirns
+			#right horizontal:
+			if self.board[x][j]==self.turn_p and not dest_pos.__contains__("R"):
+				dest_pos["R"]=(x,j)
+			#RB
+			if j+x-i<self.boardsize and self.board[x][j+x-i]==self.turn_p and not dest_pos.__contains__("RB"):
+				dest_pos["RB"]=(x,j+x-i)
+			#RT
+			if j-(x-i)>=0 and self.board[x][j-(x-i)]==self.turn_p and not dest_pos.__contains__("RT"):
+				dest_pos["RT"]=(x,j-(x-i))
+		#if not defined, set to (i,j)
+		for key in ["L", "LT", 'T', 'RT', 'R', 'RB', 'B', 'LB']:
+			if not dest_pos.__contains__(key): dest_pos[key]=(i,j)
+		return dest_pos
+
+	def exists_valid(self):
 		#Should use validate_pos(i, j)
+		for i in range(self.boardsize):
+			for j in range(self.boardsize):
+				if self.board[i][j]==0 and validate_pos(i,j): return True
+		return False
 
 	def get_click_sq(event): #returns false upon invalid event, else returns a tuple (i,j) representing a rectangle.
 		if not isinstance(event, pygame.event.Event):
 			print('''
 Incorrect function call for function play.
-Syntax: play(player_number, pygame_event)
+Syntax: play(pygame_event)
 		 ''')
 			return False
 		else:
@@ -99,20 +136,39 @@ Syntax: play(player_number, pygame_event)
 		return False
 
 
-	def play_turn(self, event): #returns False if something invalid occurs, else returns true
+	def play(self, event): #returns False if something invalid occurs, else returns true
 		draw_board()
 		if not exists_valid():
-			turn_change()
+			self.sk[self.turn_p-1]=1
+			#turn_change() called in ../game.py
 			#TODO implement notification
 			return True
 		else:
+			self.sk[self.turn_p-1]=0
 			event_status=get_click_sq(event)
 			if not event_status: return False
-			#TODO check event_status has a viable pair by using Check2 condition
-			#TODO after check: if check2 passed:
-				#commence flipping of token.
+			i,j=event_status
+			if self.board[i][j]==0: return False
+			dest_pos=validate_pos(i,j)
+			if not dest_pos: return False
+			#Flipping: TODO flipping animation
+			#Horizontal:
+			for x in range(dest_pos['L'][0], dest_pos['R'][0]):
+				self.board[x][j]=self.turn_p
+			#Vertical:
+			for y in range(dest_pos['T'][1], dest_pos['B'][1]):
+				self.board[i][y]=self.turn_p
+			#Standard diagonal:
+			for x in range(dest_pos['LT'][0], dest_pos['RB'][0]):
+				self.board[x][j-(x-i)]=self.turn_p
+			#Other diagonal:
+			for x in range(dest_pos['LB'][0], dest_pos['RT'][0]): #x => left to right
+				self.board[x][j+(x-i)]=self.turn_p
+			if self.turn_p==1: self.p1used+=1
+			else: self.p2used+=1
+				#increment self.piused
 				#commit turn_change 
-				'''turn_change()'''
+			#turn_change() called in ../game.py
 
 	#Gameplay:
 		#on turn of player x:
@@ -131,17 +187,21 @@ Syntax: play(player_number, pygame_event)
 					#End game
 					#Check win condition, return winning player
 
-	def win_check(self): #returns winning player (1 or 2); In case of draw returns 0
-		c=[0,0]
-		for i in self.board:
-			c[i-1]+=1
-		if c[0]>c[1]: return 1
-		elif c[1]>c[0]: return 2
+	def win_check(self):
+		''' checks if game over
+				then returns winning player (1 or 2)
+				In case of draw returns 0
+			if game not over return the string "none"
+			'''
+		if self.sk!=[1,1]: return "none"
+		c=np.bincount(self.board.ravel())
+		if c[1]>c[2]: return 1
+		elif c[2]>c[1]: return 2
 		else: return 0
 
 	def wipeout(self): #returns winner if wipeout, else returns 0
-		if np.array_equal(self.board, np.ones((self.boardsize,self.boardsize))): wiper=1
-		elif np.array_equal(self.board, np.full(shape=(self.boardsize,self.boardsize), fill_value=2)): wiper=2
+		if np.all(self.board==1): wiper=1
+		elif np.all(self.board==2): wiper=2
 		else: wiper=0
 	#TODO: manage displaying
 		return wiper
