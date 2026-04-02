@@ -14,10 +14,14 @@ i=0
 while [ $i -lt $num_attempts ]; do
 	echo "Enter username for user_1"
 	read u1
-	if [ "$u1" != "" ]; then break
+	if [[ "$u1" != ""  && ! "$u1" =~ ^.*,.*$ ]]; then break
 	else
 		i=$(($i+1))
-		echo "Username may not be empty. $((${num_attempts}-${i})) attempts left."
+		if [ "$u1" == "" ]; then
+			echo "Username may not be empty. $((${num_attempts}-${i})) attempts left."
+		else
+			echo "Username may not contain comma. $((${num_attempts}-${i})) attempts left."
+		fi
 		if [[ $i -eq ${num_attempts} ]]; then
 			echo "You took too many attempts. Exiting..."
 			exit #exits script
@@ -90,10 +94,14 @@ while [ $i -lt $num_attempts ]; do
 	echo "Enter username for user_2"
 	read u2
 	if [ "$u2" != "$u1" ]; then
-		if [ "$u2" != "" ]; then break
+		if [[ "$u2" != "" && ! "$u2" =~ ^.*,.*$ ]]; then break
 		else
 			i=$(($i+1))
-			echo "Username may not be empty. $((${num_attempts}-${i})) attempts left."
+			if [ "$u2" == "" ]; then
+				echo "Username may not be empty. $((${num_attempts}-${i})) attempts left."
+			else
+				echo "Username may not contain comma. $((${num_attempts}-${i})) attempts left."
+			fi
 			if [[ $i -eq ${num_attempts} ]]; then
 				echo "You took too many attempts. Exiting..."
 				exit #exits script
