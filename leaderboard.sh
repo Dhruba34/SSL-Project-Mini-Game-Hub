@@ -19,7 +19,7 @@
 
 #grouping: pass an array to awk for game order
 
-if [ $7 -eq 1 ]; then
+if [[ $7 -eq 1 ]]; then
 	a=("connect_4" "othello" "TicTacToe")
 else
 	a=("TicTacToe" "othello" "connect_4")
@@ -29,8 +29,8 @@ file=$(gawk -v games="${a[*]}" -f leaderboard.awk  history.csv)
 
 #making the sort command: -k part
 
-cm=$(echo -e $1"\n"$2"\n"$3"\n"$4"\n"$5"\n"$6 | awk '{ if ($1 > 0){printf "-k %d,%d ",$1,$1} else {printf "-k %d,%dr",-$1,-$1}}')
+cm=$(echo -e $1"\n"$2"\n"$3"\n"$4"\n"$5"\n"$6 | awk '{ if ($1 > 0){printf "-k %d,%dr ",$1,$1} else {printf "-k %d,%d ",-$1,-$1}}')
 
-echo $(sort -t "," ${cm} <<< "$file") 
+sort -t "," ${cm} <<< "$file" #echo not needed here.
 
 
