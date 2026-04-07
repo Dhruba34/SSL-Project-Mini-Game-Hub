@@ -60,7 +60,10 @@ class Othello(Board):
 		self.width=width
 		self.height=height
 		self.screen=screen
-		self.draw_board()
+		self.min_dim=min(self.width*2/3, self.height) #Right part is for notifications
+		self.pad=0.04*self.min_dim
+		self.min_dim-=2*self.pad #removing padding from our calculation for board sizes
+		self.sqsize=self.min_dim/self.boardsize
 	#TODO button for displaying rules.
 
 	'''

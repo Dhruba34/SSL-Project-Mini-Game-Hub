@@ -42,8 +42,8 @@ class Button:
             ),
         )
 
-class RadioButton:
-    def __init__(self, x, y, rect_width,text,font_name="Consolas", font_size=22,
+class Checkbox:
+    def __init__(self, x, y, rect_width,text,idx,font_name="Consolas", font_size=22,
                  text_color=(255,255,255), selected_color=(70, 130, 180),
                  unselected_color=(100, 100, 100), radius=10):
         self.x = x
@@ -56,6 +56,8 @@ class RadioButton:
         self.unselected_color = unselected_color
         self.radius = radius
         self.selected = False
+        self.idx=idx
+        self.reverse=False
         self.rect=None
     def assign(self,x,y,rect_width,text,font_name="Consolas",font_size=22,text_color=(255,255,255),selected_color=(70,130,180),
                unselected_color=(100,100,100),radius=10):
@@ -75,18 +77,27 @@ class RadioButton:
         self.selected = False
 
     def draw(self, screen):
-        pygame.draw.circle(screen, self.unselected_color, (self.x, self.y), self.radius, 2)
-        if self.selected:
-            pygame.draw.circle(screen, self.selected_color, (self.x, self.y), self.radius // 2 + 2)
+        small_rect=pygame.Rect(self.x-self.radius,self.y-self.radius,self.radius*2,self.radius*2)
+        if not self.selected:
+            pygame.draw.rect(screen,(0,0,255),small_rect,3,2)
+        else:
+            pygame.draw.rect(screen,(0,0,255),small_rect,0,2)
+            num = self.font.render(str(self.priority[self.idx]), True, self.text_color)
+            screen.blit(num, (self.x-num.get_width()//2, self.y-num.get_height()//2))
+
         text_surf = self.font.render(self.text, True, self.text_color)
         self.rect=pygame.Rect(self.x-self.radius,self.y-self.radius,self.radius*2+10+text_surf.get_width(),max(self.radius*2,text_surf.get_height()))
         screen.blit(text_surf, (self.x + self.radius + 10, self.y - text_surf.get_height() // 2))
 
+        pygame.draw.circle(screen, self.unselected_color, (self.x+self.radius+10+text_surf.get_width()+5, self.y), self.radius, 2)
+        if self.reverse:
+            pygame.draw.circle(screen, self.selected_color, (self.x+self.radius+10+text_surf.get_width()+5, self.y), self.radius // 2 + 2)
+        
 class Menu:
     def __init__(self,width,height):
         self.width=width
         self.height=height
-        self.font=pygame.font.SysFont("Consolas",18)
+        self.font=pygame.font.SysFont("Consolas",int(min(18/800*width,18/400*height)))
         self.tictactoe=Button("TicTacToe",0.4*width,0.2*height,0.2*width,0.15*height,self.font)
         self.othello=Button("Othello",0.4*width,0.4*height,0.2*width,0.15*height,self.font)
         self.connect4=Button("Connect4",0.4*width,0.6*height,0.2*width,0.15*height,self.font)
@@ -124,10 +135,13 @@ class Board:
         self.bg=pygame.transform.scale(self.bg,(self.width,self.height))
         self.leaderboard=Button("",0,0,0,0,None)
         self.board=None
-        self.o1=RadioButton(0,0,0,"")
-        self.o1.selected=True
-        self.o2=RadioButton(0,0,0,"")
-        self.o3=RadioButton(0,0,0,"")
+        self.o1=Checkbox(0,0,0,"",0)
+        self.o2=Checkbox(0,0,0,"",1)
+        self.o3=Checkbox(0,0,0,"",2)
+        self.o4=Checkbox(0,0,0,"",3)
+        self.o5=Checkbox(0,0,0,"",4)
+        self.o6=Checkbox(0,0,0,"",5)
+        self.o7=Checkbox(0,0,0,"",6)
         self.ldb_but=Button("",0,0,0,0,None)
         self.charts=Button("",0,0,0,0,None)
         self.fig_no=0
@@ -165,20 +179,29 @@ class Board:
         return check
 
     def show_leaderboard(self,obj,event):
+        #the logic is currently faulty. Needs to be updated
         rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
         pygame.draw.rect(self.screen, (192,192,192), rect)
         font=pygame.font.SysFont("Consolas",int(rect.w*0.07),bold=True)
         line=font.render("Sort Mode of Leaderboard",True,(255,255,255))
         self.screen.blit(line,pygame.Rect((self.width-line.get_width())//2,int(rect.y+rect.h*0.1),line.get_width(),line.get_height()))
-        self.o1.assign(int(rect.w*0.3+rect.x),int(rect.y+0.3*rect.h),rect.w,"No. of Wins")
-        self.o2.assign(int(rect.w*0.3+rect.x),int(rect.y+0.45*rect.h),rect.w,"No. of Losses")
-        self.o3.assign(int(rect.w*0.3+rect.x),int(rect.y+0.6*rect.h),rect.w,"Win/Loss ratio")
+        self.o1.assign(int(rect.w*0.3+rect.x),int(rect.y+0.2*rect.h),rect.w,"Grouping games lexicographically")
+        self.o2.assign(int(rect.w*0.3+rect.x),int(rect.y+0.267*rect.h),rect.w,"Username")
+        self.o3.assign(int(rect.w*0.3+rect.x),int(rect.y+0.334*rect.h),rect.w,"No. of Wins")
+        self.o4.assign(int(rect.w*0.3+rect.x),int(rect.y+0.401*rect.h),rect.w,"No. of Losses")
+        self.o5.assign(int(rect.w*0.3+rect.x),int(rect.y+0.468*rect.h),rect.w,"No. of Draws")
+        self.o6.assign(int(rect.w*0.3+rect.x),int(rect.y+0.535*rect.h),rect.w,"Win/Loss ratio")
+        self.o7.assign(int(rect.w*0.3+rect.x),int(rect.y+0.602*rect.h),rect.w,"No. of Games played of this type")
         font=pygame.font.SysFont("Consolas",int(rect.w*0.035),bold=True)
         self.ldb_but.assign("Generate",int(0.6*rect.w+rect.x),int(0.75*rect.h+rect.y),int(0.35*rect.w),int(0.2*rect.h),font)
         self.charts.assign("Visualize",int(0.05*rect.w+rect.x),int(rect.y+0.75*rect.h),int(0.45*rect.w),int(0.2*rect.h),font)
         self.o1.draw(self.screen)
         self.o2.draw(self.screen)
         self.o3.draw(self.screen)
+        self.o4.draw(self.screen)
+        self.o5.draw(self.screen)
+        self.o6.draw(self.screen)
+        self.o7.draw(self.screen)
         self.ldb_but.draw(self.screen)
         self.charts.draw(self.screen)
         rect1=self.o1.rect
