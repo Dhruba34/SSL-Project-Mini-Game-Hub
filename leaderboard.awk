@@ -54,7 +54,7 @@ END {
 		i=arr[x]
 		if (i in l){
 			for (j in l[i]){
-				if (l[i][j][2] == 0) {l[i][j][4]="inf"}
+				if (l[i][j][2] == 0) {l[i][j][4]="UNDEF"}
 				else {l[i][j][4]=l[i][j][1]/l[i][j][2]}
 				l[i][j][5]=l[i][j][1]+l[i][j][2]+l[i][j][3]
 				print i "," j "," l[i][j][1] "," l[i][j][2] "," l[i][j][3] "," l[i][j][4]

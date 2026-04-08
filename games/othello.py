@@ -2,7 +2,7 @@
 from sys import path as sys_path
 from os import path as os_path
 sys_path.append(os_path.join(os_path.dirname(__file__),'..')) #adds parent dir of file's dir to list of dirs searched by python for importing
-from game import Board
+from game import Board, Button
 import pygame as pg
 import numpy as np
 
@@ -14,36 +14,68 @@ class comp: #to match with game.py; comp is short for comply/compliance
 
 class Othello(Board):
 	def __init__(self, width, height, screen): #initialise the othello game object
+
 		self.width=width
 		self.height=height
 		self.screen=screen
+
 		#colors:
 		self.bkcolor=(10,10,10) #TODO Changes to be enabled later via settings button
 		self.boardcol=(0, 102, 51) #Green TODO settings...
-		self.p1tokcol=(255,255,255) #white TODO settings...
-		self.p2tokcol=(0,0,0) #Davy's gray TODO settings...
-		#tot. number of tokens per player is self.boardsize*self.boardsize/2
-		self.p1used=0
-		self.p2used=0
-		#initialising board, turn number and player turn
-		self.boardsize=8 #TODO Allow for ideas like small, medium, large boards
+		self.p2tokcol=(255,255,255) #white TODO settings...
+		self.p1tokcol=(0,0,0) #Davy's gray TODO settings...
+
+		#initialising board
+		self.boardsize=4 #TODO Allow for ideas like small, medium, large boards
 		self.board=np.zeros((self.boardsize, self.boardsize), dtype=int)
 		self.board[self.boardsize//2-1][self.boardsize//2-1]=self.board[self.boardsize//2][self.boardsize//2]=1
 		self.board[self.boardsize//2-1][self.boardsize//2]=self.board[self.boardsize//2][self.boardsize//2-1]=2
-		self.turn_num=1
-		self.turn=1
-		self.min_dim=min(self.width*2/3, self.height) #Right part is for notifications
+		self.min_dim=min(self.width*2/3, self.height) #Right part is for logs
 		self.pad=0.04*self.min_dim
 		self.min_dim-=2*self.pad #removing padding from our calculation for board sizes
 		self.sqsize=self.min_dim/self.boardsize
+
+		#Initialise turn number and player turn
+		self.turn_num=1
+		self.turn=1 #player turn
+
 		#important param for win_check: check that no turns are left for each player.
 		self.sk=[0,0]
+		self.max_tok=int(self.boardsize*self.boardsize/2) #tot. number of tokens available per player
+		self.p1used=0
+		self.p2used=0
+
+		#common
+		self.bold=pg.font.SysFont("consolas", 16, bold=True)
+		self.normal=pg.font.SysFont("consolas", 16)
+
+		#logs surface object
+		self.log_width=self.width-self.min_dim-3*self.pad
+		self.log_height=self.height-2*self.pad-self.min_dim/8 #last term is due to button, not due to board.
+		#log_height will be used while blitting
+		self.log_screen=pg.Surface((self.log_width, 1000)) #info on this screen will be on a large area to allow scrolling
+		#NOTE: not all screens are visible. Visible screens need to be set using pg.display.set_mode(...)
+		self.logcol=(30,30,30)
+		self.log=[]
+		self.scroll=0
+		#To show notificatin space initially
+		#self.display_log(0)
+
 		#to match with game.py
 		self.playing_board=comp(self.min_dim, self.min_dim, self.screen)
 
-	#TODO Settings for board colours & player token colours
+		#TODO: Make button for settings, handle clicking in play(), drawing in draw_board and maximize.
+		self.settings=Button("Settings", 2*self.pad+self.min_dim, self.pad, self.log_width/2, self.min_dim/8, self.normal)
+		self.shown_settings=0
+
+		#Butto for help, handle clicking in play(), drawing in draw_board and maximize.
+		self.help=Button("Help", 2*self.pad+self.min_dim+self.log_width/2, self.pad, self.log_width/2, self.min_dim/8, self.normal)
+		self.shown_help=0
+
+	#TODO Settings for board colours, log colours & player token colours
 
 	def draw_board(self):
+		#TODO: Make button for rules, handle clicking in main.
 		for i in range (self.boardsize):
 			x=self.pad+i*self.min_dim/self.boardsize+i*self.pad/8
 			for j in range (self.boardsize):
@@ -56,30 +88,78 @@ class Othello(Board):
 				elif self.board[i][j]==2:
 					pg.draw.circle(self.screen, self.p2tokcol, rect.center, rect.width//4)
 
+		#for settings:
+		self.settings.draw(self.screen)
+
+		#for help:
+		self.help.draw(self.screen)
+
 	def maximize(self,width,height,screen):
 		self.width=width
 		self.height=height
 		self.screen=screen
+		self.min_dim=min(self.width*2/3, self.height) #Right part is for logs
+		self.pad=0.04*self.min_dim
+		self.min_dim-=2*self.pad #removing padding from our calculation for board sizes
+		self.sqsize=self.min_dim/self.boardsize
 		self.draw_board()
+
+		#for log
+		temp=self.log_height
+		self.log_width=self.width-self.min_dim-3*self.pad
+		self.log_height=self.height-2*self.pad-self.min_dim/8 #last term is due to button, not due to board.
+		#log_height will be used while blitting
+		self.scroll=max(self.scroll-(self.log_height-temp), 0)
+		self.log_screen=pg.Surface((self.log_width, 1000)) #info on this screen will be on a large area to allow scrolling
+		self.to_log()
+		self.display_log()
+
+		#for settings
+		self.settings=Button("Settings", 2*self.pad+self.min_dim, self.pad, self.log_width/2, self.min_dim/8, self.normal)
+		self.settings.draw(self.screen)
+
+		#for help
+		self.help=Button("Help", 2*self.pad+self.min_dim+self.log_width/2, self.pad, self.log_width/2, self.min_dim/8, self.normal)
+		self.help.draw(self.screen)
+
 	#TODO button for displaying rules.
 
-	'''
+	def display_help(self):
+		head='Othello game rules:'
+		rules='\n8x8 board\n\tcentre as:\n\t\tW|B\n\t\tB|W\n\tFirst move:\n\t\tBlack\n\tMove definition:\n\t\tAdd a token of your colour to the board.\n\t\tA move is valid only if it traps one or more opponent discs in a straight line between the newly placed disc and an existing own disc\n\t\tAll trapped discs are flipped to the current player’s colour; multiple lines can be flipped in one move\n\t\tIf a player has no valid moves, their turn is skipped\n\t\tThe player with more discs of their colour when no valid moves remain wins'
+		rules=rules.replace('\t', '    ')
+		head_surf=self.bold.render(head, True, (255,255,0), wraplength=int(self.log_width))
+		main_surf=self.normal.render(rules, True, (255,255,0), wraplength=int(self.log_width))
+		prev_scroll=self.scroll
+		self.scroll=min(1000-head_surf.get_height()-main_surf.get_height(), 1000-self.log_height)
+		self.log_screen.blit(head_surf, (10, self.scroll))
+		self.log_screen.blit(main_surf, (10,self.scroll+head_surf.get_height()))
+		self.display_log()
+		return prev_scroll
 
-	Othello game rules:
-		8x8 board
-		centre as:
-			W|B
-			B|W
-		First move:
-			Black
-		Move definition:
-			Add a token of your colour to the board.
-			A move is valid only if it traps one or more opponent discs in a straight line between the newly placed disc and an existing own disc
-			All trapped discs are flipped to the current player’s colour; multiple lines can be flipped in one move
-		If a player has no valid moves, their turn is skipped
-		The player with more discs of their colour when no valid moves remain wins
+	def to_log(self):
+		self.log_screen.fill(self.logcol)
+		#blunder alert! putting this in display_log would wipe everything that to_log puts.
+		y=10 #init ofset from surface start
+		for msg_obj in self.log:
+			#msg_obj[1] is a tuple (string, color)
+			msg_head="Turn "+str(msg_obj[0][0])+':'
+			msg=" Player "+str(msg_obj[0][1])+": "+str(msg_obj[1][0])
+			head_surf=self.bold.render(msg_head, True, msg_obj[1][1], wraplength=int(self.log_width))
+			main_surf=self.normal.render(msg, True, msg_obj[1][1], wraplength=int(self.log_width))
+			#https://stackoverflow.com/questions/42014195/rendering-text-with-multiple-lines-in-pygame (the answer with 3 votes)
+			self.log_screen.blit(head_surf, (10, y))
+			y+=head_surf.get_height()
+			self.log_screen.blit(main_surf, (10,y))
+			y+=(main_surf.get_height()+10)
+		if y>self.scroll+self.log_height: self.scroll=y-self.log_height-42 #autoscroll
+		return (950-y<0) #if returns True, pop[0]
 
-	'''
+	def display_log(self):
+		tlc=(2*self.pad+self.min_dim, self.height-self.log_height-self.pad) #top-left coordinate of log screen
+		capture=pg.Rect(0, self.scroll, self.log_width, self.log_height) #Rect(left, top, width, height) -> Rect
+		#"Capture" this part of log_screen to blit
+		self.screen.blit(self.log_screen, tlc, capture)
 
 	def turn_change(self, really):
 		if really:
@@ -118,7 +198,6 @@ class Othello(Board):
 		encountered=0
 		#down:
 		for y in range(j+1, self.boardsize):
-			if y>self.boardsize: break
 			if self.board[i][y]==0: break
 			if self.board[i][y]==self.turn: #keycheck not req.d since will break
 				if encountered: dest_pos["B"]=(i, y)
@@ -172,33 +251,43 @@ class Othello(Board):
 		return False
 
 	def get_click_sq(self, event): #returns False upon invalid event, else returns a tuple (i,j) representing a rectangle.
-		if not isinstance(event, pg.event.Event):
-			print('''
-Incorrect function call for function play.
-Syntax: play(pg_event)
-		 ''')
-			return False
-		else:
-			mx,my=event.pos
-			for i in range(self.boardsize):
-				x=self.pad+i*self.min_dim/self.boardsize+i*self.pad/8
-				for j in range(self.boardsize):
-					y=self.pad+j*self.min_dim/self.boardsize+j*self.pad/8
-					rect=pg.Rect(x, y, self.sqsize, self.sqsize)
-					if rect.collidepoint(mx, my):
-						if self.board[i][j]==0:
-							return i,j
+		mx,my=event.pos
+		for i in range(self.boardsize):
+			x=self.pad+i*self.min_dim/self.boardsize+i*self.pad/8
+			for j in range(self.boardsize):
+				y=self.pad+j*self.min_dim/self.boardsize+j*self.pad/8
+				rect=pg.Rect(x, y, self.sqsize, self.sqsize)
+				if rect.collidepoint(mx, my):
+					if self.board[i][j]==0:
+						return i,j
 		return False
 
 
 	def play(self, turn, event): #the variable turn is taken just to match game.py
 		#returns False if something invalid occurs, else returns true
 		self.draw_board()
+		self.display_log() #important because otherwise log erased by drawing board.
 		if not self.exists_valid():
+			self.log.append(((self.turn_num, self.turn),("No valid turn exists. Skipping...", (255,85,255)))) #colour from ansi escape codes
+			to_pop=self.to_log()
+			if to_pop: self.log.pop(0)
+			self.display_log()
 			self.sk[self.turn-1]=1
 			#turn_change() called in ../game.py
 			#TODO implement notification
 			return True
+		elif self.settings.handle_event(event):
+			self.shown_settings=1-self.shown_settings
+			#TODO
+		elif self.help.handle_event(event):
+			prev_scroll=0
+			self.shown_help=1-self.shown_help
+			if self.shown_help:
+				prev_scroll=self.display_help()
+			else:
+				self.to_log()
+				self.scroll=prev_scroll
+				self.display_log()
 		else:
 			self.sk[self.turn-1]=0
 			if event.type == pg.MOUSEBUTTONDOWN: event_status=self.get_click_sq(event)
@@ -206,7 +295,13 @@ Syntax: play(pg_event)
 			if not event_status: return False
 			i,j=event_status
 			dest_pos=self.validate_pos(i,j)
-			if not dest_pos: return False
+			if not dest_pos:
+				self.log.append(((self.turn_num, self.turn),(f"Invalid position ({i}, {j})", (170, 0, 0)))) #again colour from ansi escape codes
+				#Consider (255, 85, 85) instead in case of low visibility of this red.
+				to_pop=self.to_log()
+				if to_pop: self.log.pop(0)
+				self.display_log()
+				return False
 			self.board[i][j]=self.turn
 			#flipping: TODO flipping animation (loops will need modification since not all tokens accessed in loop are of opposite color; own tokens (<=3 of them) need to be excluded.
 			#horizontal:
@@ -224,11 +319,16 @@ Syntax: play(pg_event)
 			if self.turn==1: self.p1used+=1
 			else: self.p2used+=1
 				#increment self.piused
+			self.log.append(((self.turn_num, self.turn),(f'Placed token at ({i}, {j}); {self.max_tok-[self.p1used, self.p2used][self.turn-1]} tokens remaining', (0,170,0)))) #again colour from ansi escape codes
+			#Consider (85,255,85) instead if low visibility
+			to_pop=self.to_log()
+			if to_pop: self.log.pop(0)
+			self.display_log()
 			return True
 				#commit turn_change 
 			#turn_change() called in ../game.py
 
-	#Gameplay:
+	#Gameplay initial draft:
 		#on turn of player x:
 			#'''func1: pres line -> bool'''#If exists valid turn: (Loop until valid move played or 3 incorrect moves made.)
 				#On event mouseclick (Enable use of game by keyboard?)
@@ -251,7 +351,7 @@ Syntax: play(pg_event)
 				In case of draw returns 0
 			if game not over return the string "none"
 			'''
-		if self.sk!=[1,1]: return "none"
+		if self.sk!=[1,1] and self.max_tok not in (self.p1used, self.p2used): return "none"
 		c=np.bincount(self.board.ravel())
 		if c[1]>c[2]: return 1
 		elif c[2]>c[1]: return 2

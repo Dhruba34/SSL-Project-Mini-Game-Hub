@@ -11,26 +11,20 @@
 #	draws, draws_rev --> 5 or -5
 #	win_loss_ratio, win_loss_ratio_rev --> 6 or -6
 #	tot_played, tot_played_rev --> 7 or -7
-# TODO setup logic which allows dealing with min conditions, ex. if wins,losses_rev,username then win_loss_ratio & tot_played become redundant
 # Following priority is to be interpretted as grouping constraints: ($7)
-#	game, game_rev; default: game
+#	game, game_rev;
 #
 # TODO learn about the column utility
 
 #grouping: pass an array to awk for game order
 
-if [[ $7 -eq 1 ]]; then
-	a=("connect_4" "othello" "TicTacToe")
-else
-	a=("TicTacToe" "othello" "connect_4")
-fi
+a=("connect_4" "Othello" "TicTacToe")
 
 file=$(gawk -v games="${a[*]}" -f leaderboard.awk  history.csv)
 
 #making the sort command: -k part
 
-cm=$(echo -e $1"\n"$2"\n"$3"\n"$4"\n"$5"\n"$6 | awk '{ if ($1 > 0){printf "-k %d,%dr ",$1,$1} else {printf "-k %d,%d ",-$1,-$1}}')
+cm=$(echo -e $7"\n"$1"\n"$2"\n"$3"\n"$4"\n"$5"\n"$6 | awk '{ if ($1 > 0){printf "-k %d,%dr ",$1,$1} else if ($1<0) {printf "-k %d,%d ",-$1,-$1}}')
 
-sort -t "," ${cm} <<< "$file" #echo not needed here.
-
+sort -t "," ${cm} <<< "$file" | column -s, -t #echo not needed here.
 
