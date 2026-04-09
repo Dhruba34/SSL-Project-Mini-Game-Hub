@@ -39,7 +39,8 @@ class Othello(Board):
 		#important param for win_check: check that no turns are left for each player.
 		self.sk=[0,0]
 		#to match with game.py
-		self.playing_board=comp(self.min_dim, self.min_dim, self.screen)
+		self.final_boardsize=min(self.width*0.8,self.height*0.8)
+		self.playing_board=comp(self.final_boardsize, self.final_boardsize, self.screen)
 
 	#TODO Settings for board colours & player token colours
 

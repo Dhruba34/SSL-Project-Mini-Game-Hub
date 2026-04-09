@@ -48,9 +48,11 @@ class Checkbox:
                  unselected_color=(100, 100, 100), radius=10):
         self.x = x
         self.y = y
+        self.displaywidth=rect_width
         self.text = text
-        font_size=int(18/320*rect_width)
+        font_size=int(9/320*rect_width)
         self.font = pygame.font.SysFont(font_name, font_size)
+        self.font_box=pygame.font.SysFont(font_name,18)
         self.text_color = text_color
         self.selected_color = selected_color
         self.unselected_color = unselected_color
@@ -59,13 +61,17 @@ class Checkbox:
         self.idx=idx
         self.reverse=False
         self.rect=None
+        self.priority=0
+        self.radiorect=None
     def assign(self,x,y,rect_width,text,font_name="Consolas",font_size=22,text_color=(255,255,255),selected_color=(70,130,180),
                unselected_color=(100,100,100),radius=10):
         self.x = x
         self.y = y
+        self.displaywidth=rect_width
         self.text = text
-        font_size=int(18/320*rect_width)
+        font_size=int(12/320*rect_width)
         self.font = pygame.font.SysFont(font_name, font_size)
+        self.font_box=pygame.font.SysFont(font_name,18)
         self.text_color = text_color
         self.selected_color = selected_color
         self.unselected_color = unselected_color
@@ -82,34 +88,32 @@ class Checkbox:
             pygame.draw.rect(screen,(0,0,255),small_rect,3,2)
         else:
             pygame.draw.rect(screen,(0,0,255),small_rect,0,2)
-            num = self.font.render(str(self.priority[self.idx]), True, self.text_color)
+            num = self.font_box.render(str(self.priority), True, self.text_color)
             screen.blit(num, (self.x-num.get_width()//2, self.y-num.get_height()//2))
 
         text_surf = self.font.render(self.text, True, self.text_color)
         self.rect=pygame.Rect(self.x-self.radius,self.y-self.radius,self.radius*2+10+text_surf.get_width(),max(self.radius*2,text_surf.get_height()))
         screen.blit(text_surf, (self.x + self.radius + 10, self.y - text_surf.get_height() // 2))
 
-        pygame.draw.circle(screen, self.unselected_color, (self.x+self.radius+10+text_surf.get_width()+5, self.y), self.radius, 2)
+        pygame.draw.circle(screen, self.unselected_color, (self.x+self.displaywidth*0.8, self.y), self.radius, 2)
+        self.radiorect=pygame.Rect(self.x+self.displaywidth*0.8-self.radius, self.y-self.radius, self.radius*2,self.radius*2)
         if self.reverse:
-            pygame.draw.circle(screen, self.selected_color, (self.x+self.radius+10+text_surf.get_width()+5, self.y), self.radius // 2 + 2)
+            pygame.draw.circle(screen, self.selected_color, (self.x+self.displaywidth*0.8, self.y), self.radius//2)
         
 class Menu:
-    def __init__(self,width,height):
+    def __init__(self,width,height,board):
         self.width=width
         self.height=height
+        self.baord=board
         self.font=pygame.font.SysFont("Consolas",int(min(18/800*width,18/400*height)))
         self.tictactoe=Button("TicTacToe",0.4*width,0.2*height,0.2*width,0.15*height,self.font)
         self.othello=Button("Othello",0.4*width,0.4*height,0.2*width,0.15*height,self.font)
         self.connect4=Button("Connect4",0.4*width,0.6*height,0.2*width,0.15*height,self.font)
     def draw(self,screen,event):
-        panel_width=0.4*self.width
-        panel_height=0.8*self.height
-        panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-        panel_surface.fill((10, 10, 10, 160))
-        panel_rect = panel_surface.get_rect()
-        panel_rect.center = (self.width // 2, self.height // 2)
-        color = (0, 0, 0)
-        pygame.draw.rect(screen, color, panel_rect, border_radius=8)
+        #panel_width=0.4*self.width
+        #panel_height=0.8*self.height
+        board.bg=pygame.transform.scale(pygame.image.load("./pictures/background4.png"),(self.width,self.height))
+        
         self.tictactoe.draw(screen)
         self.othello.draw(screen)
         self.connect4.draw(screen)
@@ -131,22 +135,23 @@ class Board:
         self.stats=stats
         self.width=width
         self.height=height
-        self.bg=pygame.image.load("./pictures/background.png")
+        self.bg=pygame.image.load("./pictures/background2.png")
         self.bg=pygame.transform.scale(self.bg,(self.width,self.height))
         self.leaderboard=Button("",0,0,0,0,None)
         self.board=None
-        self.o1=Checkbox(0,0,0,"",0)
-        self.o2=Checkbox(0,0,0,"",1)
-        self.o3=Checkbox(0,0,0,"",2)
-        self.o4=Checkbox(0,0,0,"",3)
-        self.o5=Checkbox(0,0,0,"",4)
-        self.o6=Checkbox(0,0,0,"",5)
-        self.o7=Checkbox(0,0,0,"",6)
+        self.o1=Checkbox(0,0,0,"",1)
+        self.o2=Checkbox(0,0,0,"",2)
+        self.o3=Checkbox(0,0,0,"",3)
+        self.o4=Checkbox(0,0,0,"",4)
+        self.o5=Checkbox(0,0,0,"",5)
+        self.o6=Checkbox(0,0,0,"",6)
+        self.o7=Checkbox(0,0,0,"",7)
         self.ldb_but=Button("",0,0,0,0,None)
         self.charts=Button("",0,0,0,0,None)
         self.fig_no=0
         self.b1=Button("",0,0,0,0,None)
         self.b2=Button("",0,0,0,0,None)
+        self.priorities=[]
     def page(self):
         self.screen.blit(self.bg,(0,0))
     
@@ -179,19 +184,18 @@ class Board:
         return check
 
     def show_leaderboard(self,obj,event):
-        #the logic is currently faulty. Needs to be updated
         rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
         pygame.draw.rect(self.screen, (192,192,192), rect)
         font=pygame.font.SysFont("Consolas",int(rect.w*0.07),bold=True)
         line=font.render("Sort Mode of Leaderboard",True,(255,255,255))
         self.screen.blit(line,pygame.Rect((self.width-line.get_width())//2,int(rect.y+rect.h*0.1),line.get_width(),line.get_height()))
-        self.o1.assign(int(rect.w*0.3+rect.x),int(rect.y+0.2*rect.h),rect.w,"Grouping games lexicographically")
-        self.o2.assign(int(rect.w*0.3+rect.x),int(rect.y+0.267*rect.h),rect.w,"Username")
-        self.o3.assign(int(rect.w*0.3+rect.x),int(rect.y+0.334*rect.h),rect.w,"No. of Wins")
-        self.o4.assign(int(rect.w*0.3+rect.x),int(rect.y+0.401*rect.h),rect.w,"No. of Losses")
-        self.o5.assign(int(rect.w*0.3+rect.x),int(rect.y+0.468*rect.h),rect.w,"No. of Draws")
-        self.o6.assign(int(rect.w*0.3+rect.x),int(rect.y+0.535*rect.h),rect.w,"Win/Loss ratio")
-        self.o7.assign(int(rect.w*0.3+rect.x),int(rect.y+0.602*rect.h),rect.w,"No. of Games played of this type")
+        self.o1.assign(int(rect.w*0.1+rect.x),int(rect.y+0.2*rect.h),rect.w,"Game name lexicographically")
+        self.o2.assign(int(rect.w*0.1+rect.x),int(rect.y+0.267*rect.h),rect.w,"Username")
+        self.o3.assign(int(rect.w*0.1+rect.x),int(rect.y+0.334*rect.h),rect.w,"No. of Wins")
+        self.o4.assign(int(rect.w*0.1+rect.x),int(rect.y+0.401*rect.h),rect.w,"No. of Losses")
+        self.o5.assign(int(rect.w*0.1+rect.x),int(rect.y+0.468*rect.h),rect.w,"No. of Draws")
+        self.o6.assign(int(rect.w*0.1+rect.x),int(rect.y+0.535*rect.h),rect.w,"Win/Loss ratio")
+        self.o7.assign(int(rect.w*0.1+rect.x),int(rect.y+0.602*rect.h),rect.w,"No. of Games played of this type")
         font=pygame.font.SysFont("Consolas",int(rect.w*0.035),bold=True)
         self.ldb_but.assign("Generate",int(0.6*rect.w+rect.x),int(0.75*rect.h+rect.y),int(0.35*rect.w),int(0.2*rect.h),font)
         self.charts.assign("Visualize",int(0.05*rect.w+rect.x),int(rect.y+0.75*rect.h),int(0.45*rect.w),int(0.2*rect.h),font)
@@ -204,31 +208,36 @@ class Board:
         self.o7.draw(self.screen)
         self.ldb_but.draw(self.screen)
         self.charts.draw(self.screen)
-        rect1=self.o1.rect
-        rect2=self.o2.rect
-        rect3=self.o3.rect
+        objs=[self.o1,self.o2,self.o3,self.o4,self.o5,self.o6,self.o7]
+        rect=[i.rect for i in objs]
+        radiorects=[i.radiorect for i in objs]
+        
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if rect1.collidepoint(event.pos):
-                self.o1.select()
-                self.o2.deselect()
-                self.o3.deselect()
-            elif rect2.collidepoint(event.pos):
-                self.o1.deselect()
-                self.o2.select()
-                self.o3.deselect()
-            elif rect3.collidepoint(event.pos):
-                self.o1.deselect()
-                self.o2.deselect()
-                self.o3.select()
+            for i in range(7):
+                if rect[i].collidepoint(event.pos):
+                    if not objs[i].selected:
+                        objs[i].selected=True
+                        self.priorities.append(objs[i])
+                    else:
+                        objs[i].selected=False
+                        self.priorities.remove(objs[i])
+            for i in range(len(self.priorities)):
+                self.priorities[i].priority=i+1
+            
+            for i in range(7):
+                if radiorects[i].collidepoint(event.pos):
+                    objs[i].reverse=not objs[i].reverse
+            
+
         if self.charts.handle_event(event):
             return True
         if self.ldb_but.handle_event(event):
-            if(self.o1.selected):
-                os.system("bash leaderboard.sh win")
-            elif(self.o2.selected):
-                os.system("bash leaderboard.sh loss")
-            else:
-                os.system("bash leaderboard.sh ratio")
+            preference=[-i.idx if i.reverse else i.idx for i in self.priorities]
+            cmd="bash leaderboard.sh"
+            for i in preference:
+                cmd+=" "+str(i)
+            print(cmd)
+            os.system(cmd)
         return False
 
     def draw_gauge(self,ax, values, texts, color):
@@ -396,7 +405,7 @@ if __name__=="__main__":
     player1=sys.argv[1]
     player2=sys.argv[2]
     board=Board(sys.argv[1],sys.argv[2],width,height,None)
-    menu=Menu(width,height)
+    menu=Menu(width,height,board)
     running=True
     is_menu=True
     tic=Tictactoe(width,height,board.screen)
@@ -417,7 +426,7 @@ if __name__=="__main__":
                 board.width,board.height=event.w,event.h
                 board.screen=pygame.display.set_mode((board.width,board.height),pygame.RESIZABLE)
                 board.bg=pygame.transform.scale(board.bg,(board.width,board.height))
-                menu=Menu(board.width,board.height)
+                menu=Menu(board.width,board.height,board)
                 tic.maximize(board.width,board.height,board.screen)
                 oth.maximize(board.width,board.height,board.screen)
                 con.maximize(board.width,board.height,board.screen)
