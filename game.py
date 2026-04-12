@@ -4,43 +4,213 @@ import time
 import os
 import sys
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+import math
+
+class TransitionManager:
+    GAME_NAMES  = {0: "TIC TAC TOE", 1: "OTHELLO", 2: "CONNECT 4"}
+    GAME_COLORS = {
+        0: (0, 200, 255),
+        1: (180, 100, 255),
+        2: (255, 140, 0),
+    }
+
+    def __init__(self, screen):
+        self.screen=screen
+        self.state="idle"
+        self.t0=0.0
+        self.game= 0
+        self.snapshot=None
+        self.just_finished=False
+        self.fade_duration=0.5
+        self.show_duration=3.6
+        self.reveal_duration=1.5
+
+    def start(self, game_index):
+        self.game=game_index
+        self.t0=time.time()
+        self.state="fade_out"
+        self.snapshot=self.screen.copy()
+
+    def active(self):
+        return self.state!="idle"
+
+    @property
+    def done(self) -> bool:
+        """True for exactly one frame after FADE_IN finishes."""
+        return self.state=="idle" and self.just_finished
+    def update(self):
+        self.just_finished = False
+        if self.state=="idle":
+            return
+        
+        now=time.time()
+        elapsed=now-self.t0
+        w,h=self.screen.get_size()
+
+        if self.state=="fade_out":
+            alpha=int(255*min(elapsed/self.fade_duration,1.0))
+            if self.snapshot:
+                snap=pygame.transform.scale(self.snapshot,(w,h))
+                self.screen.blit(snap,(0,0))
+            overlay = pygame.Surface((w,h))
+            overlay.fill((0,0,0))
+            overlay.set_alpha(alpha)
+            self.screen.blit(overlay, (0,0))
+            if elapsed>=self.fade_duration:
+                self.t0=now
+                self.state="show"
+
+        elif self.state=="show":
+            self.draw_splash(w, h, elapsed)
+            if elapsed >= self.reveal_duration + self.show_duration:
+                self.t0=now
+                self.state="fade_in"
+
+        elif self.state=="fade_in":
+            alpha=int(255*(1-min(elapsed/self.fade_duration,1)))
+            overlay=pygame.Surface((w, h))
+            overlay.fill((0, 0, 0))
+            overlay.set_alpha(alpha)
+            self.screen.blit(overlay, (0, 0))
+            if elapsed>=self.fade_duration:
+                self.state="idle"
+                self.just_finished=True
+    def draw_splash(self, w, h, elapsed):
+        accent=self.GAME_COLORS[self.game]
+        name=self.GAME_NAMES[self.game]
+
+        # --- solid black background ---
+        self.screen.fill((0, 0, 0))
+
+        # --- scanline grid (subtle) ---
+        for y in range(0, h, 18):
+            pygame.draw.line(self.screen, (10, 10, 10), (0, y), (w, y),1)
+        for x in range(0, w, 36):
+            pygame.draw.line(self.screen, (8, 8, 8), (x, 0), (x, h), 1)
+
+        # --- horizontal accent bars ---
+        t_pulse = elapsed*3.0
+        bar_alpha = int(80 + 60 * math.sin(t_pulse))
+        bar_surf = pygame.Surface((w, 3), pygame.SRCALPHA)
+        bar_surf.fill((*accent, bar_alpha))
+        self.screen.blit(bar_surf, (0, h // 2 - 60))
+        self.screen.blit(bar_surf, (0, h // 2 + 60))
+
+        # --- corner brackets ---
+        margin, arm = 24, 22
+        bk_alpha = min(255, int(255 * elapsed / 0.2))
+        bk_surf  = pygame.Surface((w, h), pygame.SRCALPHA)
+        c = (*accent, bk_alpha)
+        pairs = [
+            ((margin, margin),         (1, 0), (0, 1)),
+            ((w - margin, margin),     (-1, 0), (0, 1)),
+            ((margin, h - margin),     (1, 0), (0, -1)),
+            ((w - margin, h - margin), (-1, 0), (0, -1)),
+        ]
+        for (cx, cy), (dx, dy), (ex, ey) in pairs:
+            pygame.draw.line(bk_surf, c, (cx, cy), (cx + dx*arm, cy + dy*arm), 2)
+            pygame.draw.line(bk_surf, c, (cx, cy), (cx + ex*arm, cy + ey*arm), 2)
+        self.screen.blit(bk_surf, (0, 0))
+
+        # --- reveal progress (character scan effect) ---
+        reveal_frac = min(elapsed/self.reveal_duration, 1.0)
+        chars_shown  = int(len(name) * reveal_frac)
+        visible_text = name[:chars_shown]
+        cursor       = "_" if chars_shown < len(name) else ""
+
+        font_size = max(28, min(72, int(w * 0.075)))
+        try:
+            font = pygame.font.SysFont("Consolas", font_size, bold=True)
+        except Exception:
+            font = pygame.font.Font(None, font_size)
+
+        # glow pass (slightly larger, dimmer, same colour)
+        glow_surf = font.render(visible_text + cursor, True,
+                                tuple(max(0, c - 100) for c in accent))
+        gx = (w - glow_surf.get_width())  // 2
+        gy = (h - glow_surf.get_height()) // 2
+        for off in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
+            self.screen.blit(glow_surf, (gx + off[0], gy + off[1]))
+
+        # main text
+        txt = font.render(visible_text + cursor, True, accent)
+        self.screen.blit(txt, (gx, gy))
+
+        # --- sub-label ---
+        if reveal_frac >= 1.0:
+            sub_alpha = int(255 * min((elapsed-self.reveal_duration) / 0.3, 1.0))
+            sub_font  = pygame.font.SysFont("Consolas", max(12, font_size // 4))
+            sub       = sub_font.render("LOADING BOARD...", True, accent)
+            sub_surf  = pygame.Surface((sub.get_width(), sub.get_height()), pygame.SRCALPHA)
+            sub_surf.blit(sub, (0, 0))
+            sub_surf.set_alpha(sub_alpha)
+            self.screen.blit(sub_surf,
+                             ((w - sub.get_width()) // 2,
+                              gy + glow_surf.get_height() + 18))
 class Button:
     def __init__(self, text, x, y, w, h, font):
         self.rect = pygame.Rect(x, y, w, h)
         self.text = text
         self.font = font
+        self.hovered = False
+        self.pulse_t = 0.0
+        self._last_draw_time = None
+        self.accent = (0,200,255)
+        self.bg     = (0,13,26)
+        self.dim    = (26,96,144)
 
-        self.base_color = (50, 120, 200)
-        self.hover_color = (80, 160, 255)
-        self.current_color = self.base_color
-    def assign(self,text,x,y,w,h,font):
-        self.rect=pygame.Rect(x,y,w,h)
-        self.text=text
-        self.font=font
+    def assign(self, text, x, y, w, h, font):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.text = text
+        self.font = font
+
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
-            if self.rect.collidepoint(event.pos):
-                self.current_color = self.hover_color
-            else:
-                self.current_color = self.base_color
-
+            self.hovered = self.rect.collidepoint(event.pos)
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
-                return True   # button clicked
+                return True
         return False
+    def polygon(self, notch=12):
+        x, y, w, h = self.rect
+        return [
+            (x + notch, y),
+            (x + w,     y),
+            (x + w,     y + h),
+            (x,         y + h),
+            (x,         y + notch),
+        ]
 
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.current_color, self.rect, border_radius=12)
-
-        txt_surface = self.font.render(self.text, True, (255, 255, 255))
-        screen.blit(
-            txt_surface,
-            (
-                self.rect.x + (self.rect.w - txt_surface.get_width()) // 2,
-                self.rect.y + (self.rect.h - txt_surface.get_height()) // 2,
-            ),
-        )
+    def draw(self,screen):
+        x,y,w,h=self.rect
+        notch=12
+        accent=self.accent
+        dim=self.dim
+        poly=self.polygon(notch)
+        local_poly=[(px-x,py-y) for px,py in poly]
+        bg_surf=pygame.Surface((w,h),pygame.SRCALPHA)
+        pygame.draw.polygon(bg_surf,(*self.bg,230),local_poly)
+        screen.blit(bg_surf,(x,y))
+        pulse=0.55+0.45*math.sin(self.pulse_t)
+        border_color=tuple(int(c*pulse) for c in dim) if not self.hovered else accent
+        border_alpha=255 if self.hovered else int(180*pulse)
+        border_surf=pygame.Surface((w,h),pygame.SRCALPHA)
+        pygame.draw.polygon(border_surf,(*border_color,border_alpha),local_poly,2)
+        screen.blit(border_surf,(x,y))
+        notch_alpha=255 if self.hovered else int(200*pulse)
+        pygame.draw.line(screen,(*accent,notch_alpha),(x,y+notch),(x+notch,y),2)
+        tick_alpha=int(140*pulse)
+        pygame.draw.rect(screen,(*accent,tick_alpha),(x,y+h//2-5,3,10))
+        pygame.draw.rect(screen,(*accent,tick_alpha),(x+w-3,y+h//2-5,3,10))
+        pygame.draw.line(screen,(*dim,180),(x+4,y+h-2),(x+28,y+h-2),1)
+        pygame.draw.line(screen,(*dim,180),(x+w-28,y+h-2),(x+w-4,y+h-2),1)
+        if self.hovered:
+            hover_surf=pygame.Surface((w,h),pygame.SRCALPHA)
+            pygame.draw.polygon(hover_surf,(*accent,18),local_poly)
+            screen.blit(hover_surf,(x,y))
+        text_color=(255,255,255) if self.hovered else accent
+        txt=self.font.render(self.text,True,text_color)
+        screen.blit(txt,(x+(w-txt.get_width())//2,y+(h-txt.get_height())//2))
 
 class Checkbox:
     def __init__(self, x, y, rect_width,text,idx,font_name="Consolas", font_size=22,
@@ -106,9 +276,10 @@ class Menu:
         self.height=height
         self.baord=board
         self.font=pygame.font.SysFont("Consolas",int(min(18/800*width,18/400*height)))
-        self.tictactoe=Button("TicTacToe",0.4*width,0.2*height,0.2*width,0.15*height,self.font)
-        self.othello=Button("Othello",0.4*width,0.4*height,0.2*width,0.15*height,self.font)
-        self.connect4=Button("Connect4",0.4*width,0.6*height,0.2*width,0.15*height,self.font)
+        self.font2=pygame.font.SysFont("Consolas",int(min(30/800*width,30/400*height)))
+        self.tictactoe=Button("TicTacToe",0.4*width,0.35*height,0.2*width,0.1125*height,self.font)
+        self.othello=Button("Othello",0.4*width,0.51875*height,0.2*width,0.1125*height,self.font)
+        self.connect4=Button("Connect4",0.4*width,0.6875*height,0.2*width,0.1125*height,self.font)
     def draw(self,screen,event):
         #panel_width=0.4*self.width
         #panel_height=0.8*self.height
@@ -117,6 +288,8 @@ class Menu:
         self.tictactoe.draw(screen)
         self.othello.draw(screen)
         self.connect4.draw(screen)
+        title=self.font2.render("SELECT GAME",True,(235, 205, 205))
+        screen.blit(title,pygame.Rect(0.38125*self.width,0.2*height,0.3*self.width,0.1*self.height))
         if self.tictactoe.handle_event(event):
             return 0
         elif self.othello.handle_event(event):
@@ -152,6 +325,7 @@ class Board:
         self.b1=Button("",0,0,0,0,None)
         self.b2=Button("",0,0,0,0,None)
         self.priorities=[]
+        self.transition = TransitionManager(self.screen)
     def page(self):
         self.screen.blit(self.bg,(0,0))
     
@@ -416,6 +590,7 @@ if __name__=="__main__":
     stats=False
     charts=False
     intermediate=False
+    fading=False
     final_result=0
     while running:
         event = pygame.event.Event(pygame.NOEVENT)
@@ -430,78 +605,88 @@ if __name__=="__main__":
                 tic.maximize(board.width,board.height,board.screen)
                 oth.maximize(board.width,board.height,board.screen)
                 con.maximize(board.width,board.height,board.screen)
+                board.transition.screen = board.screen
                 pygame.display.flip()
                 continue
-            board.page()
-            if is_menu:
-                o=menu.draw(board.screen,event)
-                if(o!=3):
-                    is_menu=False
-            else:
-                if results:
-                    if o==0:
-                        obj=tic
-                    elif o==1:
-                        obj=oth
-                    elif o==2:
-                        obj=con
-                    if board.show_results(final_result,obj,event):
-                        results=False
-                        stats=True
-                elif stats:
-                    if o==0:
-                        obj=tic
-                    elif o==1:
-                        obj=oth
-                    elif o==2:
-                        obj=con
-                    if board.show_leaderboard(obj,event):
-                        stats=False
-                        charts=True
-                elif charts:
-                    if board.show_charts():
-                        charts=False
-                        intermediate=True
-                elif intermediate:
-                    if o==0:
-                        obj=tic
-                    elif o==1:
-                        obj=oth
-                    elif o==2:
-                        obj=con
-                    if board.show_intermediate(obj,event):
-                        intermediate=False
-                        is_menu=True
-                        board=Board(board.player1,board.player2,width,height,None)
-                        menu=Menu(width,height)
-                        tic=Tictactoe(width,height,board.screen)
-                        oth=Othello(width,height,board.screen)
-                        con=Connect4(width,height,board.screen)
-                        o=3
-
+        board.page()
+        if is_menu:
+            o=menu.draw(board.screen,event)
+            if(o!=3):
+                is_menu=False
+                fading=True
+                board.transition.start(o)
+                #print("hi")
+        else:
+            if fading:
+                if board.transition.active():
+                    #print("hi")
+                    board.transition.update()
                 else:
-                    if o==0:
-                        obj=tic
-                        stri="TicTacToe"
-                    elif o==1:
-                        obj=oth
-                        stri="Othello"
-                    elif o==2:
-                        obj=con
-                        stri="Connect 4"
-                    changed=obj.play(obj.turn,event)
-                    winner=obj.win_check(obj.turn)
-                    obj.turn_change(changed)
-                    if winner!="none":
-                        final_result=winner
-                        results=True
-                        with open("history.csv", "a") as f:
-                            today = time.strftime("%d-%m-%Y")
-                            if winner==0:
-                                f.write("DRAW,"+board.player1+","+board.player2+","+"NA,NA,"+str(today)+","+stri+"\n")
-                            elif winner==1:
-                                f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player1+","+board.player2+","+str(today)+","+stri+"\n")
-                            else:
-                                f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player2+","+board.player1+","+str(today)+","+stri+"\n")
-            pygame.display.flip()
+                    fading=False
+            elif results:
+                if o==0:
+                    obj=tic
+                elif o==1:
+                    obj=oth
+                elif o==2:
+                    obj=con
+                if board.show_results(final_result,obj,event):
+                    results=False
+                    stats=True
+            elif stats:
+                if o==0:
+                    obj=tic
+                elif o==1:
+                    obj=oth
+                elif o==2:
+                    obj=con
+                if board.show_leaderboard(obj,event):
+                    stats=False
+                    charts=True
+            elif charts:
+                if board.show_charts():
+                    charts=False
+                    intermediate=True
+            elif intermediate:
+                if o==0:
+                    obj=tic
+                elif o==1:
+                    obj=oth
+                elif o==2:
+                    obj=con
+                if board.show_intermediate(obj,event):
+                    intermediate=False
+                    is_menu=True
+                    board=Board(board.player1,board.player2,width,height,None)
+                    menu=Menu(width,height,board)
+                    tic=Tictactoe(width,height,board.screen)
+                    oth=Othello(width,height,board.screen)
+                    con=Connect4(width,height,board.screen)
+                    o=3
+
+            else:
+                if o==0:
+                    obj=tic
+                    stri="TicTacToe"
+                elif o==1:
+                    obj=oth
+                    stri="Othello"
+                elif o==2:
+                    obj=con
+                    stri="Connect 4"
+                changed=obj.play(obj.turn,event)
+                winner=obj.win_check(obj.turn)
+                obj.turn_change(changed)
+                if winner!="none":
+                    final_result=winner
+                    results=True
+                    with open("history.csv", "a") as f:
+                        today = time.strftime("%d-%m-%Y")
+                        if winner==0:
+                            f.write("DRAW,"+board.player1+","+board.player2+","+"NA,NA,"+str(today)+","+stri+"\n")
+                        elif winner==1:
+                            f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player1+","+board.player2+","+str(today)+","+stri+"\n")
+                        else:
+                            f.write("NOT DRAW,"+board.player1+","+board.player2+","+board.player2+","+board.player1+","+str(today)+","+stri+"\n")
+        pygame.display.flip()
     pygame.quit()
