@@ -7,18 +7,26 @@ import numpy as np
 
 class draw:
     def __init__(self,width,height,screen):
-        self.width=int(min(width*0.8,height*0.8))
-        self.height=int(min(height*0.8,width*0.8))
+        self.width=int(0.307*width)
+        self.height=self.width
         self.color=(10,10,10)
         self.screen=screen
-        self.padding=int(self.width*0.01)
-        self.cell_size=int((self.width-self.padding*15)//10)
+        self.padding=self.width*0.01
+        self.cell_size=(self.width-self.padding*15)/10
         self.radius=int(self.cell_size*0.1)
-        self.grid=pygame.Rect((width-self.width)//2,(height-self.height)//2,self.width,self.height)
+        self.color1=(0, 229, 255)
+        self.color2=(224, 64, 251)
+        self.grid=pygame.Rect((width-self.width)/2+0.007*self.width,(height-self.height)/2+0.006*self.width,self.width,self.height)
     def draw_board(self,info):
         pygame.draw.rect(self.screen,self.color,self.grid,border_radius=10)
         mx, my = pygame.mouse.get_pos()
-
+        w,h=self.screen.get_size()
+        pygame.draw.rect(self.screen,self.color1,
+                        pygame.Rect(0.058*w,0.185*h,0.0745*h,0.0745*h),border_radius=5,width=3)
+        pygame.draw.rect(self.screen,self.color2,
+                         pygame.Rect(0.91*w,0.185*h,0.0745*h,0.0745*h),border_radius=5,width=3)
+        self.draw_x(self.screen,pygame.Rect(0.058*w,0.185*h,0.0745*h,0.0745*h),self.color1)
+        self.draw_o(self.screen,pygame.Rect(0.91*w,0.185*h,0.0745*h,0.0745*h),self.color2)
         for i in range(10):
             for j in range(10):
 
@@ -40,32 +48,27 @@ class draw:
                     border_radius=self.radius
                 )
                 if info[i][j]==1:
-                    self.draw_x(self.screen,rect,(255,255,255))
+                    self.draw_x(self.screen,rect,self.color1)
                 elif info[i][j]==2:
-                    self.draw_o(self.screen,rect,(255,255,255))
-    def draw_x(self,surface, rect, color):
-        padding = rect.width // 4
-
-        pygame.draw.line(
-            surface,
-            color,
-            (rect.left + padding, rect.top + padding),
-            (rect.right - padding, rect.bottom - padding),
-            5,
-        )
-        pygame.draw.line(
-            surface,
-            color,
-            (rect.right - padding, rect.top + padding),
-            (rect.left + padding, rect.bottom - padding),
-            5,
-        )
-    def draw_o(self,surface, rect, color):
-        center = rect.center
-        radius = rect.width // 2 - rect.width // 4
-
-        pygame.draw.circle(surface, color, center, radius, 5)
-
+                    self.draw_o(self.screen,rect,self.color2)
+    def draw_x(self,surface, rect,color):
+        x,y,size,_=rect
+        half = size // 2
+        x+=half
+        y+=half
+        half=half//2
+        pygame.draw.line(surface, color, (x - half, y - half), (x + half, y + half), max(int(8/60*size),1))
+        pygame.draw.line(surface, color, (x + half, y - half), (x - half, y + half), max(int(8/60*size),1))
+        pygame.draw.line(surface, (240, 240, 255), (x - half, y - half), (x + half, y + half), max(int(2/60*size),1))
+        pygame.draw.line(surface, (240, 240, 255), (x + half, y - half), (x - half, y + half), max(int(2/60*size),1))
+    def draw_o(self,surface, rect,color):
+        x,y,radius,_=rect
+        radius=radius//2
+        x+=radius
+        y+=radius
+        radius=int(radius*0.6)
+        pygame.draw.circle(surface, color, (x, y), radius, max(1,int(6/18*radius)))
+        pygame.draw.circle(surface, (240,240,255), (x, y), radius, max(int(2/18*radius),1))
 
 class Tictactoe(Board):
     def __init__(self,width,height,screen):

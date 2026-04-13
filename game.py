@@ -24,12 +24,16 @@ class TransitionManager:
         self.fade_duration=0.5
         self.show_duration=3.6
         self.reveal_duration=1.5
+        self.reveal_img=""
+        self.board=None
 
-    def start(self, game_index):
+    def start(self, game_index,reveal_img,board):
         self.game=game_index
         self.t0=time.time()
         self.state="fade_out"
         self.snapshot=self.screen.copy()
+        self.reveal_img=reveal_img
+        self.board=board
 
     def active(self):
         return self.state!="idle"
@@ -59,12 +63,14 @@ class TransitionManager:
             if elapsed>=self.fade_duration:
                 self.t0=now
                 self.state="show"
-
         elif self.state=="show":
             self.draw_splash(w, h, elapsed)
             if elapsed >= self.reveal_duration + self.show_duration:
                 self.t0=now
                 self.state="fade_in"
+                self.snapshot=pygame.image.load(self.reveal_img)
+                self.board.bg=pygame.transform.scale(pygame.image.load(self.reveal_img),(self.board.width,self.board.height))
+                
 
         elif self.state=="fade_in":
             alpha=int(255*(1-min(elapsed/self.fade_duration,1)))
@@ -173,6 +179,7 @@ class Button:
         return False
     def polygon(self, notch=12):
         x, y, w, h = self.rect
+        notch=int(12/45*h)
         return [
             (x + notch, y),
             (x + w,     y),
@@ -183,7 +190,7 @@ class Button:
 
     def draw(self,screen):
         x,y,w,h=self.rect
-        notch=12
+        notch=int(12/45*h)
         accent=self.accent
         dim=self.dim
         poly=self.polygon(notch)
@@ -198,16 +205,17 @@ class Button:
         pygame.draw.polygon(border_surf,(*border_color,border_alpha),local_poly,2)
         screen.blit(border_surf,(x,y))
         notch_alpha=255 if self.hovered else int(200*pulse)
-        pygame.draw.line(screen,(*accent,notch_alpha),(x,y+notch),(x+notch,y),2)
-        tick_alpha=int(140*pulse)
-        pygame.draw.rect(screen,(*accent,tick_alpha),(x,y+h//2-5,3,10))
-        pygame.draw.rect(screen,(*accent,tick_alpha),(x+w-3,y+h//2-5,3,10))
-        pygame.draw.line(screen,(*dim,180),(x+4,y+h-2),(x+28,y+h-2),1)
-        pygame.draw.line(screen,(*dim,180),(x+w-28,y+h-2),(x+w-4,y+h-2),1)
+        #pygame.draw.line(screen,(*accent,notch_alpha),(x,y+notch),(x+notch,y),2)
+        #tick_alpha=int(140*pulse)
+        #pygame.draw.rect(screen,(*accent,tick_alpha),(x,y+h//2-5,3,10))
+        #pygame.draw.rect(screen,(*accent,tick_alpha),(x+w-3,y+h//2-5,3,10))
         if self.hovered:
             hover_surf=pygame.Surface((w,h),pygame.SRCALPHA)
             pygame.draw.polygon(hover_surf,(*accent,18),local_poly)
             screen.blit(hover_surf,(x,y))
+        else:
+            pygame.draw.line(screen,(*dim,180),(x,y+notch),(x+notch,y),2)
+            pygame.draw.line(screen,(*dim,180),(x,y+notch),(x,y+h//2+notch//2),1)
         text_color=(255,255,255) if self.hovered else accent
         txt=self.font.render(self.text,True,text_color)
         screen.blit(txt,(x+(w-txt.get_width())//2,y+(h-txt.get_height())//2))
@@ -289,7 +297,7 @@ class Menu:
         self.othello.draw(screen)
         self.connect4.draw(screen)
         title=self.font2.render("SELECT GAME",True,(235, 205, 205))
-        screen.blit(title,pygame.Rect(0.38125*self.width,0.2*height,0.3*self.width,0.1*self.height))
+        screen.blit(title,pygame.Rect(0.38125*self.width,0.2*self.height,0.3*self.width,0.1*self.height))
         if self.tictactoe.handle_event(event):
             return 0
         elif self.othello.handle_event(event):
@@ -614,7 +622,7 @@ if __name__=="__main__":
             if(o!=3):
                 is_menu=False
                 fading=True
-                board.transition.start(o)
+                board.transition.start(o,"./pictures/tictactoe.png",board)
                 #print("hi")
         else:
             if fading:
