@@ -4,9 +4,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__),'..'))
 from game import Board
 import pygame
 import numpy as np
+import time
+import math
 
 class draw:
-    def __init__(self,width,height,screen):
+    def __init__(self,width,height,screen,player1,player2):
         self.width=int(0.307*width)
         self.height=self.width
         self.color=(10,10,10)
@@ -16,6 +18,8 @@ class draw:
         self.radius=int(self.cell_size*0.1)
         self.color1=(0, 229, 255)
         self.color2=(224, 64, 251)
+        self.player1,self.player2=player1,player2
+        self.t0=None
         self.grid=pygame.Rect((width-self.width)/2+0.007*self.width,(height-self.height)/2+0.006*self.width,self.width,self.height)
     def draw_board(self,info):
         pygame.draw.rect(self.screen,self.color,self.grid,border_radius=10)
@@ -27,6 +31,21 @@ class draw:
                          pygame.Rect(0.91*w,0.185*h,0.0745*h,0.0745*h),border_radius=5,width=3)
         self.draw_x(self.screen,pygame.Rect(0.058*w,0.185*h,0.0745*h,0.0745*h),self.color1)
         self.draw_o(self.screen,pygame.Rect(0.91*w,0.185*h,0.0745*h,0.0745*h),self.color2)
+        font=pygame.font.SysFont("Consolas",int(20/800*w),bold=True)
+        txt=font.render("PLAYER 1",True,self.color1)
+        self.screen.blit(txt,pygame.Rect(0.1269*w,0.141*h,0,0))
+        txt=font.render(self.player1,True,self.color1)
+        self.screen.blit(txt,pygame.Rect(0.1269*w,0.213*h,0,0))
+        txt=font.render("PLAYER 2",True,self.color2)
+        self.screen.blit(txt,pygame.Rect(0.8724*w-txt.get_width(),0.141*h,0,0))
+        txt=font.render(self.player2,True,self.color2)
+        self.screen.blit(txt,pygame.Rect(0.8724*w-txt.get_width(),0.213*h,0,0))
+        if self.t0==None:
+            self.t0=time.time()
+        elapsed=time.time()-self.t0
+        formatted = time.strftime("%H:%M:%S", time.gmtime(elapsed))
+        samay=font.render(formatted,True,(160,100,4))
+        self.screen.blit(samay,pygame.Rect(w//2-samay.get_width()//2,0.9056*h,0,0))
         for i in range(10):
             for j in range(10):
 
@@ -71,13 +90,22 @@ class draw:
         pygame.draw.circle(surface, (240,240,255), (x, y), radius, max(int(2/18*radius),1))
 
 class Tictactoe(Board):
-    def __init__(self,width,height,screen):
-        self.playing_board=draw(width,height,screen)
+    def __init__(self,width,height,screen,player1,player2):
+        self.player1,self.player2=player1,player2
+        self.playing_board=draw(width,height,screen,self.player1,self.player2)
         self.board=np.zeros((10,10))
         self.screen=screen
         self.turn=1
+        self.animate=False
+        self.prev_animate=False
+        self.t0=None
+        self.highlight_time=0.3
+        self.winner=0
+        self.match=None
     def maximize(self,width,height,screen):
-        self.playing_board=draw(width,height,screen)
+        t0=self.playing_board.t0
+        self.playing_board=draw(width,height,screen,self.player1,self.player2)
+        self.playing_board.t0=t0
         self.playing_board.draw_board(self.board)
         self.screen=screen
     def reset(self):
@@ -102,12 +130,18 @@ class Tictactoe(Board):
                 return True
         return False
     def win_check(self,turn):
-        if self.check_hori_vert(turn):
-            return turn
-        if self.check_diagonal(turn):
-            return turn
-        if self.check_draw():
-            return 0
+        if self.animate==False and self.prev_animate==False:
+            if self.check_hori_vert(turn):
+                self.winner=turn
+            if self.check_diagonal(turn):
+                self.winner=turn
+            if self.check_draw():
+                return 0
+        elif self.animate==True:
+            self.highlight()
+            self.prev_animate=True
+        elif self.animate==False and self.prev_animate==True:
+            return self.winner
         return "none"
     def check_hori_vert(self,turn):
         mask = (self.board == turn).astype(int)
@@ -118,7 +152,22 @@ class Tictactoe(Board):
         # Vertical: same but along rows
         v = mask[0:6, :] + mask[1:7, :] + mask[2:8, :] + mask[3:9, :] + mask[4:10, :]
 
-        return bool((h >= 5).any() or (v >= 5).any())
+        if bool((h >= 5).any()):
+            row,col=np.where(h==5)
+            row=row[0]
+            col=col[0]
+            self.match=np.stack((np.ones(5)*row,np.arange(col,col+5)),axis=1)
+            self.animate=True
+            return True
+        elif bool((v>=5).any()):
+            row,col=np.where(v==5)
+            row=row[0]
+            col=col[0]
+            self.match=np.stack((np.arange(row,row+5),np.ones(5)*col),axis=1)
+            self.animate=True
+            return True
+        return False        
+        
     def check_diagonal(self,turn):
         mask = (self.board == turn).astype(int)
 
@@ -130,10 +179,48 @@ class Tictactoe(Board):
         d2 = (mask[0:6, 4:10] + mask[1:7, 3:9] + mask[2:8, 2:8] + 
             mask[3:9, 1:7] + mask[4:10, 0:6])
 
-        return bool((d1 >= 5).any() or (d2 >= 5).any())
+        if bool((d1 >= 5).any()):
+            row,col=np.where(d1==5)
+            row=row[0]
+            col=col[0]
+            self.match=np.stack((np.arange(row,row+5),np.arange(col,col+5)),axis=1)
+            self.animate=True
+            return True
+        elif bool((d2>=5).any()):
+            row,col=np.where(d2==5)
+            row=row[0]
+            col=col[0]+4
+            self.match=np.stack((np.arange(row,row+5),np.arange(col,col-5,-1)),axis=1)
+            self.animate=True
+            return True
+        return False
     def check_draw(self):
         return bool((self.board != 0).all())
+    def highlight(self):
+        if not self.prev_animate:
+            self.t0=time.time()
+        elapsed=float(time.time()-self.t0)
+        pulse = (math.sin(elapsed * 6) + 1) / 2
+
+        for i in range(min(5, math.ceil(elapsed/self.highlight_time))):
+            row, col = int(self.match[i][0]), int(self.match[i][1])
+            x = self.playing_board.padding*3 + col * (self.playing_board.cell_size + self.playing_board.padding) + self.playing_board.grid.x
+            y = self.playing_board.padding*3 + row * (self.playing_board.cell_size + self.playing_board.padding) + self.playing_board.grid.y
+            rect = pygame.Rect(x, y, self.playing_board.cell_size, self.playing_board.cell_size)
+            alpha = abs(int(60 + 80 * pulse))
+            glow_surface = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+            pygame.draw.rect(glow_surface,(237,120,85,alpha),glow_surface.get_rect(),border_radius=self.playing_board.radius)
+            self.screen.blit(glow_surface, rect.topleft)
+            if self.board[row][col] == 1:
+                self.playing_board.draw_x(self.screen, rect, self.playing_board.color1)
+            elif self.board[row][col] == 2:
+                self.playing_board.draw_o(self.screen, rect, self.playing_board.color2)    
+        if elapsed>10*self.highlight_time:
+            self.animate=False
+        
     def turn_change(self,changed):
+        if self.animate:
+            return
         if changed:
             if self.turn==1:
                 self.turn=2

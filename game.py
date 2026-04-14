@@ -334,36 +334,82 @@ class Board:
         self.b2=Button("",0,0,0,0,None)
         self.priorities=[]
         self.transition = TransitionManager(self.screen)
+        self.t0=None
+        self.snapshot=None
     def page(self):
         self.screen.blit(self.bg,(0,0))
-    
-    def draw_results(self,rect,text,color,text_color,event,font1="Consolas",size=30):
-        pygame.draw.rect(self.screen, color, rect)
-        font = pygame.font.SysFont(font1, size, bold=True)
-        line1 = font.render("Game Over!", True, text_color)
-        line2 = font.render(text, True, text_color)
-        x,y,w,h=rect.x,rect.y,rect.w,rect.h
-        line1_rect = pygame.Rect(x+int(w*0.25),y+int(0.1*h),w//2,h//4)
-        line2_rect = pygame.Rect(x+w//4,y+h//2,int(w*0.75),h//4)
-        self.screen.blit(line1, line1_rect)
-        self.screen.blit(line2, line2_rect)
-        font=pygame.font.SysFont(font1,int(size*0.5),bold=True)
-        self.leaderboard.assign("Leaderboard",int(x+0.5*w),int(y+0.7*h),int(w*0.4),int(h*0.2),font)
-        self.leaderboard.draw(self.screen)
-        return self.leaderboard.handle_event(event)
-        
-    def show_results(self,winner,obj,event):
-        check=False
+    def draw_results(self, text, color=(171, 64, 2)):
+        w, h = self.screen.get_size()
+        elapsed = time.time() - self.t0
+        self.screen.blit(self.snapshot, (0, 0))
+        fade = min(1, elapsed / 0.6)
+        fade = fade * fade
+        dark_alpha = int(200 * fade)
+        bar_alpha  = int(180 * fade)
+        dark = pygame.Surface((w, h), pygame.SRCALPHA)
+        dark.fill((0, 0, 0, dark_alpha))
+        self.screen.blit(dark, (0, 0))
+        bar_height = int(0.20 * h)
+        bar_y = h // 2 - bar_height // 2
+        for i in range(bar_height):
+            t = abs(i - bar_height / 2) / (bar_height / 2)
+            alpha = int(bar_alpha * (1 - t * t))
+            line = pygame.Surface((w, 1), pygame.SRCALPHA)
+            line.fill((0, 0, 0, alpha))
+            self.screen.blit(line, (0, bar_y + i))
+        def glow_line(y):
+            for i in range(10, 0, -1):
+                surf = pygame.Surface((w, 2), pygame.SRCALPHA)
+                surf.fill((*color, 18 * i))
+                self.screen.blit(surf, (0, y - i))
+
+        glow_line(bar_y)
+        glow_line(bar_y + bar_height)
+        font_size = int(h * 0.09)
+        font = pygame.font.SysFont("Georgia", font_size, bold=True)
+        txt  = font.render(text, True, color)
+        while txt.get_width() > w * 0.85 and font_size > 20:
+            font_size -= 2
+            font = pygame.font.SysFont("Georgia", font_size, bold=True)
+            txt  = font.render(text, True, color)
+        tx = w // 2 - txt.get_width() // 2
+        ty = h // 2 - txt.get_height() // 2
+        for spread in range(6, 0, -2):
+            glow_surf = font.render(text, True, color)
+            glow_surf.set_alpha(30)
+            self.screen.blit(glow_surf, (tx - spread, ty))
+            self.screen.blit(glow_surf, (tx + spread, ty))
+            self.screen.blit(glow_surf, (tx, ty - spread // 2))
+            self.screen.blit(glow_surf, (tx, ty + spread // 2))
+        self.screen.blit(txt, (tx, ty))
+        font_small = pygame.font.SysFont("Consolas", int(h * 0.032))
+        blink  = (math.sin(elapsed * 3) + 1) / 2
+        alpha  = int(120 + 120 * blink)
+        sub = font_small.render("Press SPACE to continue", True, (200, 200, 200))
+        sub.set_alpha(alpha)
+
+        sx = w // 2 - sub.get_width() // 2
+        sy = bar_height*1.1+bar_y
+        self.screen.blit(sub, (sx, sy))
+            
+    def show_results(self,winner,event):
+        if self.t0==None:
+            self.t0=time.time()
         if winner==0:
-            rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
-            check=self.draw_results(rect,"DRAW",(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
+            #rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
+            self.draw_results("DRAW")
         elif winner==1:
-            rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
-            check=self.draw_results(rect,"WINNER: "+self.player1,(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
+            #rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
+            self.draw_results("WINNER: "+self.player1)
         else:
-            rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
-            check=self.draw_results(rect,"WINNER: "+self.player2,(192,192,192),(255,255,255),event,size=int(0.1*obj.playing_board.width))
-        return check
+            #rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
+            self.draw_results("WINNER: "+self.player2)
+        if event.type==pygame.KEYDOWN:
+            #print("hello")
+            if event.key==pygame.K_SPACE:
+                #print("hi")
+                return True
+        return False
 
     def show_leaderboard(self,obj,event):
         rect=pygame.Rect((self.width-obj.playing_board.width)//2,(self.height-obj.playing_board.height)//2,obj.playing_board.width,obj.playing_board.height)
@@ -590,7 +636,7 @@ if __name__=="__main__":
     menu=Menu(width,height,board)
     running=True
     is_menu=True
-    tic=Tictactoe(width,height,board.screen)
+    tic=Tictactoe(width,height,board.screen,player1,player2)
     oth=Othello(width,height,board.screen)
     con=Connect4(width,height,board.screen)
     o=3
@@ -602,6 +648,7 @@ if __name__=="__main__":
     final_result=0
     while running:
         event = pygame.event.Event(pygame.NOEVENT)
+        key=None
         for event in pygame.event.get():
             if(event.type==pygame.QUIT):
                 running=False
@@ -609,6 +656,8 @@ if __name__=="__main__":
                 board.width,board.height=event.w,event.h
                 board.screen=pygame.display.set_mode((board.width,board.height),pygame.RESIZABLE)
                 board.bg=pygame.transform.scale(board.bg,(board.width,board.height))
+                if board.snapshot!=None:
+                    board.snapshot=pygame.transform.scale(board.snapshot,(board.width,board.height))
                 menu=Menu(board.width,board.height,board)
                 tic.maximize(board.width,board.height,board.screen)
                 oth.maximize(board.width,board.height,board.screen)
@@ -616,6 +665,10 @@ if __name__=="__main__":
                 board.transition.screen = board.screen
                 pygame.display.flip()
                 continue
+            elif event.type==pygame.KEYDOWN:
+                key=event
+        if key==None:
+            key=event
         board.page()
         if is_menu:
             o=menu.draw(board.screen,event)
@@ -632,13 +685,7 @@ if __name__=="__main__":
                 else:
                     fading=False
             elif results:
-                if o==0:
-                    obj=tic
-                elif o==1:
-                    obj=oth
-                elif o==2:
-                    obj=con
-                if board.show_results(final_result,obj,event):
+                if board.show_results(final_result,key):
                     results=False
                     stats=True
             elif stats:
@@ -667,7 +714,7 @@ if __name__=="__main__":
                     is_menu=True
                     board=Board(board.player1,board.player2,width,height,None)
                     menu=Menu(width,height,board)
-                    tic=Tictactoe(width,height,board.screen)
+                    tic=Tictactoe(width,height,board.screen,player1,player2)
                     oth=Othello(width,height,board.screen)
                     con=Connect4(width,height,board.screen)
                     o=3
@@ -687,6 +734,8 @@ if __name__=="__main__":
                 obj.turn_change(changed)
                 if winner!="none":
                     final_result=winner
+                    board.snapshot=board.screen.copy()
+                    board.t0=time.time()
                     results=True
                     with open("history.csv", "a") as f:
                         today = time.strftime("%d-%m-%Y")
