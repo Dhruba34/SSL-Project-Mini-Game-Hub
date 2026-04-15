@@ -13,11 +13,12 @@ class comp: #to match with game.py; comp is short for comply/compliance
 		self.screen=screen
 
 class Othello(Board):
-	def __init__(self, width, height, screen): #initialise the othello game object
+	def __init__(self, width, height, screen, player1, player2): #initialise the othello game object
 
 		self.width=width
 		self.height=height
 		self.screen=screen
+		self.scale=1
 
 		#colors:
 		self.bkcolor=(10,10,10) #TODO Changes to be enabled later via settings button
@@ -26,12 +27,15 @@ class Othello(Board):
 		self.p1tokcol=(0,0,0) #Davy's gray TODO settings...
 
 		#initialising board
+		self.player1=player1
+		self.player2=player2
 		self.boardsize=4 #TODO Allow for ideas like small, medium, large boards
 		self.board=np.zeros((self.boardsize, self.boardsize), dtype=int)
-		self.board[self.boardsize//2-1][self.boardsize//2-1]=self.board[self.boardsize//2][self.boardsize//2]=1
-		self.board[self.boardsize//2-1][self.boardsize//2]=self.board[self.boardsize//2][self.boardsize//2-1]=2
-		self.min_dim=min(self.width*2/3, self.height) #Right part is for logs
+		self.board[self.boardsize//2-1][self.boardsize//2-1]=self.board[self.boardsize//2][self.boardsize//2]=2
+		self.board[self.boardsize//2-1][self.boardsize//2]=self.board[self.boardsize//2][self.boardsize//2-1]=1
+		self.min_dim=min(self.width*2/3, self.height*0.92) #Right part is for logs
 		self.pad=0.04*self.min_dim
+		self.min_dim-=(self.boardsize-1)*self.pad/8 #gap between squares in board
 		self.min_dim-=2*self.pad #removing padding from our calculation for board sizes
 		self.sqsize=self.min_dim/self.boardsize
 
@@ -46,30 +50,32 @@ class Othello(Board):
 		self.p2used=0
 
 		#common
-		self.bold=pg.font.SysFont("consolas", 16, bold=True)
-		self.normal=pg.font.SysFont("consolas", 16)
+		self.font_size=16
+		self.bold=pg.font.SysFont("consolas", self.font_size, bold=True)
+		self.normal=pg.font.SysFont("consolas", self.font_size)
 
 		#logs surface object
-		self.log_width=self.width-self.min_dim-3*self.pad
+		self.log_width=self.width-self.min_dim-3*self.pad-self.boardsize*self.pad/8
 		self.log_height=self.height-2*self.pad-self.min_dim/8 #last term is due to button, not due to board.
 		#log_height will be used while blitting
-		self.log_screen=pg.Surface((self.log_width, 1000)) #info on this screen will be on a large area to allow scrolling
+		self.log_screen=pg.Surface((self.log_width, 1000*self.scale))
+		#self.log_screen.set_alpha(170)
+		#info on this screen will be on a large area to allow scrolling
 		#NOTE: not all screens are visible. Visible screens need to be set using pg.display.set_mode(...)
 		self.logcol=(30,30,30)
 		self.log=[]
 		self.scroll=0
-		#To show notificatin space initially
-		#self.display_log(0)
+		self.scroll_sensitivity=100
 
 		#to match with game.py
 		self.playing_board=comp(self.min_dim, self.min_dim, self.screen)
 
 		#TODO: Make button for settings, handle clicking in play(), drawing in draw_board and maximize.
-		self.settings=Button("Settings", 2*self.pad+self.min_dim, self.pad, self.log_width/2, self.min_dim/8, self.normal)
+		self.settings=Button("Settings", 2*self.pad+self.min_dim+self.boardsize*self.pad/8, self.pad, self.log_width/2, self.min_dim/8, self.normal)
 		self.shown_settings=0
 
 		#Butto for help, handle clicking in play(), drawing in draw_board and maximize.
-		self.help=Button("Help", 2*self.pad+self.min_dim+self.log_width/2, self.pad, self.log_width/2, self.min_dim/8, self.normal)
+		self.help=Button("Help", 2*self.pad+self.min_dim+self.boardsize*self.pad/8+self.log_width/2, self.pad, self.log_width/2, self.min_dim/8, self.normal)
 		self.shown_help=0
 
 	#TODO Settings for board colours, log colours & player token colours
@@ -78,8 +84,16 @@ class Othello(Board):
 		#TODO: Make button for rules, handle clicking in main.
 		for i in range (self.boardsize):
 			x=self.pad+i*self.min_dim/self.boardsize+i*self.pad/8
+			#horizontal numbering
+			num=self.bold.render(f'{i}', True, (255,193,7))
+			self.screen.blit(num, (x+self.sqsize//2-num.width//2, 2*self.pad))
 			for j in range (self.boardsize):
-				y=self.pad+j*self.min_dim/self.boardsize+j*self.pad/8
+				y=self.height*0.08+self.pad+j*self.min_dim/self.boardsize+j*self.pad/8
+				if (i==0):
+					#vertical numbering
+					num=self.bold.render(f'{j}', True, (255,193,7))
+					off=(self.pad-num.width)//2 #not checking for this becoming -ve to prevent bleeding of text into board
+					self.screen.blit(num, (off, y+self.sqsize//2-num.height//2))
 				rect=pg.Rect(x, y, self.sqsize, self.sqsize)
 				pg.draw.rect(self.screen, self.boardcol, rect) #Rect(left, top, width, height) -> Rect
 				
@@ -95,43 +109,52 @@ class Othello(Board):
 		self.help.draw(self.screen)
 
 	def maximize(self,width,height,screen):
+		#fonts
+		self.scale=min(width/self.width, height/self.height)
+		self.font_size=int(self.font_size*self.scale)
+		self.normal=pg.font.SysFont("consolas", self.font_size)
+		self.bold=pg.font.SysFont("consolas", self.font_size, bold=True)
+
 		self.width=width
 		self.height=height
 		self.screen=screen
-		self.min_dim=min(self.width*2/3, self.height) #Right part is for logs
+		self.min_dim=min(self.width*2/3, self.height*0.92) #Right part is for logs
 		self.pad=0.04*self.min_dim
+		self.min_dim-=(self.boardsize-1)*self.pad/8 #gap between squares in board
 		self.min_dim-=2*self.pad #removing padding from our calculation for board sizes
 		self.sqsize=self.min_dim/self.boardsize
 		self.draw_board()
 
 		#for log
-		temp=self.log_height
-		self.log_width=self.width-self.min_dim-3*self.pad
+		self.log_width=self.width-self.min_dim-3*self.pad-self.boardsize*self.pad/8
 		self.log_height=self.height-2*self.pad-self.min_dim/8 #last term is due to button, not due to board.
 		#log_height will be used while blitting
+		temp=self.log_height
 		self.scroll=max(self.scroll-(self.log_height-temp), 0)
-		self.log_screen=pg.Surface((self.log_width, 1000)) #info on this screen will be on a large area to allow scrolling
+		self.log_screen=pg.Surface((self.log_width, 1000*self.scale)) #info on this screen will be on a large area to allow scrolling
+		#self.log_screen.set_alpha(170)
 		self.to_log()
 		self.display_log()
 
 		#for settings
-		self.settings=Button("Settings", 2*self.pad+self.min_dim, self.pad, self.log_width/2, self.min_dim/8, self.normal)
+		self.settings=Button("Settings", 2*self.pad+self.min_dim+self.boardsize*self.pad/8, self.pad, self.log_width/2, self.min_dim/8, self.normal)
 		self.settings.draw(self.screen)
 
 		#for help
-		self.help=Button("Help", 2*self.pad+self.min_dim+self.log_width/2, self.pad, self.log_width/2, self.min_dim/8, self.normal)
+		self.help=Button("Help", 2*self.pad+self.min_dim+self.boardsize*self.pad/8+self.log_width/2, self.pad, self.log_width/2, self.min_dim/8, self.normal)
 		self.help.draw(self.screen)
 
 	#TODO button for displaying rules.
 
 	def display_help(self):
+		self.log_screen.fill(self.logcol)
 		head='Othello game rules:'
 		rules='\n8x8 board\n\tcentre as:\n\t\tW|B\n\t\tB|W\n\tFirst move:\n\t\tBlack\n\tMove definition:\n\t\tAdd a token of your colour to the board.\n\t\tA move is valid only if it traps one or more opponent discs in a straight line between the newly placed disc and an existing own disc\n\t\tAll trapped discs are flipped to the current player’s colour; multiple lines can be flipped in one move\n\t\tIf a player has no valid moves, their turn is skipped\n\t\tThe player with more discs of their colour when no valid moves remain wins'
 		rules=rules.replace('\t', '    ')
 		head_surf=self.bold.render(head, True, (255,255,0), wraplength=int(self.log_width))
 		main_surf=self.normal.render(rules, True, (255,255,0), wraplength=int(self.log_width))
 		prev_scroll=self.scroll
-		self.scroll=min(1000-head_surf.get_height()-main_surf.get_height(), 1000-self.log_height)
+		self.scroll=0
 		self.log_screen.blit(head_surf, (10, self.scroll))
 		self.log_screen.blit(main_surf, (10,self.scroll+head_surf.get_height()))
 		self.display_log()
@@ -152,11 +175,11 @@ class Othello(Board):
 			y+=head_surf.get_height()
 			self.log_screen.blit(main_surf, (10,y))
 			y+=(main_surf.get_height()+10)
-		if y>self.scroll+self.log_height: self.scroll=y-self.log_height-42 #autoscroll
-		return (950-y<0) #if returns True, pop[0]
+		if y>self.scroll+self.log_height: self.scroll=y-self.log_height #autoscroll
+		return (970-25*self.scale-y<0) #if returns True, pop[0]
 
 	def display_log(self):
-		tlc=(2*self.pad+self.min_dim, self.height-self.log_height-self.pad) #top-left coordinate of log screen
+		tlc=(2*self.pad+self.min_dim+self.boardsize*self.pad/8, self.height-self.log_height-self.pad) #top-left coordinate of log screen
 		capture=pg.Rect(0, self.scroll, self.log_width, self.log_height) #Rect(left, top, width, height) -> Rect
 		#"Capture" this part of log_screen to blit
 		self.screen.blit(self.log_screen, tlc, capture)
@@ -166,6 +189,14 @@ class Othello(Board):
 			if self.turn==2:
 				self.turn_num+=1
 			self.turn=3-self.turn
+		#TODO: animation
+		name=[self.player1, self.player2][self.turn-1]
+		max_len=int(self.min_dim*(1+(self.boardsize-1)/8)/self.font_size)
+		if len(name)<=max_len:
+			show_pname=self.bold.render(f'{name}', True, (255,193,0))
+		else:
+			show_pname=self.bold.render(f'{name}'[:max_len-3]+'...', True, (32, 201, 151))
+		self.screen.blit(show_pname, (self.pad, self.pad))
 
 	def validate_pos(self, i, j): #returns dictionary of 8 positions: in each direction, the nearest token of same colour which is not (i,j). If no such token, that position is set to (i,j)
 		dest_pos=dict()
@@ -255,7 +286,7 @@ class Othello(Board):
 		for i in range(self.boardsize):
 			x=self.pad+i*self.min_dim/self.boardsize+i*self.pad/8
 			for j in range(self.boardsize):
-				y=self.pad+j*self.min_dim/self.boardsize+j*self.pad/8
+				y=self.height*0.08+self.pad+j*self.min_dim/self.boardsize+j*self.pad/8
 				rect=pg.Rect(x, y, self.sqsize, self.sqsize)
 				if rect.collidepoint(mx, my):
 					if self.board[i][j]==0:
@@ -285,9 +316,13 @@ class Othello(Board):
 			if self.shown_help:
 				prev_scroll=self.display_help()
 			else:
-				self.to_log()
 				self.scroll=prev_scroll
+				self.to_log()
 				self.display_log()
+		elif event.type == pg.MOUSEWHEEL:
+			temp=self.scroll
+			self.scroll-=event.y*self.scroll_sensitivity
+			if not (self.scroll>=0 and self.scroll<=1000*self.scale-self.log_height): self.scroll=temp
 		else:
 			self.sk[self.turn-1]=0
 			if event.type == pg.MOUSEBUTTONDOWN: event_status=self.get_click_sq(event)
