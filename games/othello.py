@@ -2,7 +2,7 @@
 from sys import path as sys_path
 from os import path as os_path
 sys_path.append(os_path.join(os_path.dirname(__file__),'..')) #adds parent dir of file's dir to list of dirs searched by python for importing
-from game import Board, Button
+from game import Board, Button as ogButton
 import pygame as pg
 import numpy as np
 
@@ -11,6 +11,29 @@ class comp: #to match with game.py; comp is short for comply/compliance
 		self.height=height
 		self.width=width
 		self.screen=screen
+
+class Button(ogButton): #Different class because different aesthetic
+	def __init__(self, text, x, y, w, h, font):
+		super().__init__(text, x, y, w, h, font) #ogButton init stuff
+		self.bg=(76, 42, 21)
+		self.accent = (212, 175, 55)
+		self.dim    = (140, 100, 50)
+		self.txtcol=(211,211,211)
+	#not defining handle_event; to be inheritted
+	def polygon(self, notch=12):
+		x, y, w, h = self.rect
+		notch=int(12/45*h)
+		return [
+			(x + notch,		y),
+			(x + w-notch,	y),
+			(x + w,			y + notch),
+			(x+w,			y+h-notch),
+			(x+w-notch,		y+h),
+			(x+notch,		y+h),
+			(x,				y + h-notch),
+			(x,		 y + notch),
+		]
+
 
 class Othello(Board):
 	def __init__(self, width, height, screen, player1, player2): #initialise the othello game object
@@ -23,8 +46,10 @@ class Othello(Board):
 		#colors:
 		self.bkcolor=(10,10,10) #TODO Changes to be enabled later via settings button
 		self.boardcol=(0, 102, 51) #Green TODO settings...
-		self.p2tokcol=(255,255,255) #white TODO settings...
+		#self.p2tokcol=(255,255,255) #white TODO settings...
 		self.p1tokcol=(0,0,0) #Davy's gray TODO settings...
+		self.p2tokimg=pg.image.load("./pictures/white_token.jpg")
+		self.p1tokimg=pg.image.load("./pictures/black_token.jpeg")
 
 		#initialising board
 		self.player1=player1
@@ -58,13 +83,14 @@ class Othello(Board):
 		self.log_width=self.width-self.min_dim-3*self.pad-self.boardsize*self.pad/8
 		self.log_height=self.height-2*self.pad-self.min_dim/8 #last term is due to button, not due to board.
 		#log_height will be used while blitting
-		self.log_screen=pg.Surface((self.log_width, 1000*self.scale))
-		#self.log_screen.set_alpha(170)
+		self.log_screen=pg.Surface((self.log_width, 1000*self.scale), pg.SRCALPHA)
 		#info on this screen will be on a large area to allow scrolling
 		#NOTE: not all screens are visible. Visible screens need to be set using pg.display.set_mode(...)
-		self.logcol=(30,30,30)
+		#self.logcol=(30,30,30)
+		self.logcol=(76, 42, 21, 150)
 		self.log=[]
 		self.scroll=0
+		self.prev_scroll=0
 		self.scroll_sensitivity=100
 
 		#to match with game.py
@@ -82,6 +108,7 @@ class Othello(Board):
 
 	def draw_board(self):
 		#TODO: Make button for rules, handle clicking in main.
+		pg.draw.rect(self.screen, (211,211,211), pg.Rect(self.pad*6/8, self.height*0.08+self.pad*6/8, self.pad*3/8+self.boardsize*(self.sqsize+self.pad/8), self.pad*3/8+self.boardsize*(self.sqsize+self.pad/8)), border_radius=int(self.pad/2))
 		for i in range (self.boardsize):
 			x=self.pad+i*self.min_dim/self.boardsize+i*self.pad/8
 			#horizontal numbering
@@ -95,12 +122,17 @@ class Othello(Board):
 					off=(self.pad-num.width)//2 #not checking for this becoming -ve to prevent bleeding of text into board
 					self.screen.blit(num, (off, y+self.sqsize//2-num.height//2))
 				rect=pg.Rect(x, y, self.sqsize, self.sqsize)
-				pg.draw.rect(self.screen, self.boardcol, rect) #Rect(left, top, width, height) -> Rect
+				pg.draw.rect(self.screen, self.boardcol, rect, border_radius=int(self.pad/2)) #Rect(left, top, width, height) -> Rect
 				
+				rect=pg.Rect(rect.center[0]-rect.width*0.40, rect.center[1]-rect.width*0.40, rect.width*0.80, rect.width*0.80)
 				if self.board[i][j]==1:
-					pg.draw.circle(self.screen, self.p1tokcol, rect.center, rect.width//4)
+					#pg.draw.circle(self.screen, self.p1tokcol, rect.center, int((rect.width/4)*1.1))
+					p1_utiltok=pg.transform.scale(self.p1tokimg, (rect.width, rect.width))
+					self.screen.blit(p1_utiltok, rect)
 				elif self.board[i][j]==2:
-					pg.draw.circle(self.screen, self.p2tokcol, rect.center, rect.width//4)
+					#pg.draw.circle(self.screen, self.p2tokcol, rect.center, rect.width//4)
+					p2_utiltok=pg.transform.scale(self.p2tokimg, (rect.width, rect.width))
+					self.screen.blit(p2_utiltok, rect)
 
 		#for settings:
 		self.settings.draw(self.screen)
@@ -131,8 +163,7 @@ class Othello(Board):
 		#log_height will be used while blitting
 		temp=self.log_height
 		self.scroll=max(self.scroll-(self.log_height-temp), 0)
-		self.log_screen=pg.Surface((self.log_width, 1000*self.scale)) #info on this screen will be on a large area to allow scrolling
-		#self.log_screen.set_alpha(170)
+		self.log_screen=pg.Surface((self.log_width, 1000*self.scale), pg.SRCALPHA) #info on this screen will be on a large area to allow scrolling
 		self.to_log()
 		self.display_log()
 
@@ -151,8 +182,8 @@ class Othello(Board):
 		head='Othello game rules:'
 		rules='\n8x8 board\n\tcentre as:\n\t\tW|B\n\t\tB|W\n\tFirst move:\n\t\tBlack\n\tMove definition:\n\t\tAdd a token of your colour to the board.\n\t\tA move is valid only if it traps one or more opponent discs in a straight line between the newly placed disc and an existing own disc\n\t\tAll trapped discs are flipped to the current player’s colour; multiple lines can be flipped in one move\n\t\tIf a player has no valid moves, their turn is skipped\n\t\tThe player with more discs of their colour when no valid moves remain wins'
 		rules=rules.replace('\t', '    ')
-		head_surf=self.bold.render(head, True, (255,255,0), wraplength=int(self.log_width))
-		main_surf=self.normal.render(rules, True, (255,255,0), wraplength=int(self.log_width))
+		head_surf=self.bold.render(head, True, (255,255,0), wraplength=int(self.log_width)).convert_alpha()
+		main_surf=self.normal.render(rules, True, (255,255,0), wraplength=int(self.log_width)).convert_alpha()
 		prev_scroll=self.scroll
 		self.scroll=0
 		self.log_screen.blit(head_surf, (10, self.scroll))
@@ -168,8 +199,8 @@ class Othello(Board):
 			#msg_obj[1] is a tuple (string, color)
 			msg_head="Turn "+str(msg_obj[0][0])+':'
 			msg=" Player "+str(msg_obj[0][1])+": "+str(msg_obj[1][0])
-			head_surf=self.bold.render(msg_head, True, msg_obj[1][1], wraplength=int(self.log_width))
-			main_surf=self.normal.render(msg, True, msg_obj[1][1], wraplength=int(self.log_width))
+			head_surf=self.bold.render(msg_head, True, msg_obj[1][1], wraplength=int(self.log_width)).convert_alpha()
+			main_surf=self.normal.render(msg, True, msg_obj[1][1], wraplength=int(self.log_width)).convert_alpha()
 			#https://stackoverflow.com/questions/42014195/rendering-text-with-multiple-lines-in-pygame (the answer with 3 votes)
 			self.log_screen.blit(head_surf, (10, y))
 			y+=head_surf.get_height()
@@ -193,9 +224,9 @@ class Othello(Board):
 		name=[self.player1, self.player2][self.turn-1]
 		max_len=int(self.min_dim*(1+(self.boardsize-1)/8)/self.font_size)
 		if len(name)<=max_len:
-			show_pname=self.bold.render(f'{name}', True, (255,193,0))
+			show_pname=self.bold.render(f'{name}', True, (255,193,0)).convert_alpha()
 		else:
-			show_pname=self.bold.render(f'{name}'[:max_len-3]+'...', True, (32, 201, 151))
+			show_pname=self.bold.render(f'{name}'[:max_len-3]+'...', True, (255, 193, 0)).convert_alpha()
 		self.screen.blit(show_pname, (self.pad, self.pad))
 
 	def validate_pos(self, i, j): #returns dictionary of 8 positions: in each direction, the nearest token of same colour which is not (i,j). If no such token, that position is set to (i,j)
@@ -297,7 +328,12 @@ class Othello(Board):
 	def play(self, turn, event): #the variable turn is taken just to match game.py
 		#returns False if something invalid occurs, else returns true
 		self.draw_board()
-		self.display_log() #important because otherwise log erased by drawing board.
+		if self.shown_help:
+			self.prev_scroll=self.display_help()
+		else:
+			self.scroll=self.prev_scroll
+			self.to_log()
+			self.display_log()
 		if not self.exists_valid():
 			self.log.append(((self.turn_num, self.turn),("No valid turn exists. Skipping...", (255,85,255)))) #colour from ansi escape codes
 			to_pop=self.to_log()
@@ -311,14 +347,7 @@ class Othello(Board):
 			self.shown_settings=1-self.shown_settings
 			#TODO
 		elif self.help.handle_event(event):
-			prev_scroll=0
 			self.shown_help=1-self.shown_help
-			if self.shown_help:
-				prev_scroll=self.display_help()
-			else:
-				self.scroll=prev_scroll
-				self.to_log()
-				self.display_log()
 		elif event.type == pg.MOUSEWHEEL:
 			temp=self.scroll
 			self.scroll-=event.y*self.scroll_sensitivity
@@ -331,11 +360,10 @@ class Othello(Board):
 			i,j=event_status
 			dest_pos=self.validate_pos(i,j)
 			if not dest_pos:
-				self.log.append(((self.turn_num, self.turn),(f"Invalid position ({i}, {j})", (170, 0, 0)))) #again colour from ansi escape codes
+				self.log.append(((self.turn_num, self.turn),(f"Invalid position ({i}, {j})", (255,60,60)))) #again colour from ansi escape codes
 				#Consider (255, 85, 85) instead in case of low visibility of this red.
 				to_pop=self.to_log()
 				if to_pop: self.log.pop(0)
-				self.display_log()
 				return False
 			self.board[i][j]=self.turn
 			#flipping: TODO flipping animation (loops will need modification since not all tokens accessed in loop are of opposite color; own tokens (<=3 of them) need to be excluded.
@@ -354,11 +382,10 @@ class Othello(Board):
 			if self.turn==1: self.p1used+=1
 			else: self.p2used+=1
 				#increment self.piused
-			self.log.append(((self.turn_num, self.turn),(f'Placed token at ({i}, {j}); {self.max_tok-[self.p1used, self.p2used][self.turn-1]} tokens remaining', (0,170,0)))) #again colour from ansi escape codes
+			self.log.append(((self.turn_num, self.turn),(f'Played ({i}, {j}); {self.max_tok-[self.p1used, self.p2used][self.turn-1]} tokens remaining', (0,170,0)))) #again colour from ansi escape codes
 			#Consider (85,255,85) instead if low visibility
 			to_pop=self.to_log()
 			if to_pop: self.log.pop(0)
-			self.display_log()
 			return True
 				#commit turn_change 
 			#turn_change() called in ../game.py
