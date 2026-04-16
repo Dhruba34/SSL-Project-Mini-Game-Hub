@@ -17,8 +17,8 @@ class Button(ogButton): #Different class because different aesthetic
 		super().__init__(text, x, y, w, h, font) #ogButton init stuff
 		self.bg=(76, 42, 21)
 		self.accent = (212, 175, 55)
-		self.dim    = (140, 100, 50)
-		self.txtcol=(211,211,211)
+		self.dim    = (160, 120, 45)
+		self.txtcol=(230, 215, 180)
 	#not defining handle_event; to be inheritted
 	def polygon(self, notch=12):
 		x, y, w, h = self.rect
@@ -44,9 +44,6 @@ class Othello(Board):
 		self.scale=1
 
 		#colors:
-		self.bkcolor=(10,10,10) #TODO Changes to be enabled later via settings button
-		self.boardcol=(0, 102, 51) #Green TODO settings...
-		#self.p2tokcol=(255,255,255) #white TODO settings...
 		self.p1tokcol=(0,0,0) #Davy's gray TODO settings...
 		self.p2tokimg=pg.image.load("./pictures/white_token.jpg")
 		self.p1tokimg=pg.image.load("./pictures/black_token.jpeg")
@@ -58,6 +55,7 @@ class Othello(Board):
 		self.board=np.zeros((self.boardsize, self.boardsize), dtype=int)
 		self.board[self.boardsize//2-1][self.boardsize//2-1]=self.board[self.boardsize//2][self.boardsize//2]=2
 		self.board[self.boardsize//2-1][self.boardsize//2]=self.board[self.boardsize//2][self.boardsize//2-1]=1
+		self.sqimg=pg.image.load("./pictures/square.png")
 		self.min_dim=min(self.width*2/3, self.height*0.92) #Right part is for logs
 		self.pad=0.04*self.min_dim
 		self.min_dim-=(self.boardsize-1)*self.pad/8 #gap between squares in board
@@ -107,8 +105,9 @@ class Othello(Board):
 	#TODO Settings for board colours, log colours & player token colours
 
 	def draw_board(self):
-		#TODO: Make button for rules, handle clicking in main.
-		pg.draw.rect(self.screen, (211,211,211), pg.Rect(self.pad*6/8, self.height*0.08+self.pad*6/8, self.pad*3/8+self.boardsize*(self.sqsize+self.pad/8), self.pad*3/8+self.boardsize*(self.sqsize+self.pad/8)), border_radius=int(self.pad/2))
+		bks1=(72, 38, 13)
+		bks2=(83, 39, 2)
+		
 		for i in range (self.boardsize):
 			x=self.pad+i*self.min_dim/self.boardsize+i*self.pad/8
 			#horizontal numbering
@@ -122,7 +121,8 @@ class Othello(Board):
 					off=(self.pad-num.width)//2 #not checking for this becoming -ve to prevent bleeding of text into board
 					self.screen.blit(num, (off, y+self.sqsize//2-num.height//2))
 				rect=pg.Rect(x, y, self.sqsize, self.sqsize)
-				pg.draw.rect(self.screen, self.boardcol, rect, border_radius=int(self.pad/2)) #Rect(left, top, width, height) -> Rect
+				sq_util=pg.transform.scale(self.sqimg, (rect.width, rect.height))
+				self.screen.blit(sq_util, rect)
 				
 				rect=pg.Rect(rect.center[0]-rect.width*0.40, rect.center[1]-rect.width*0.40, rect.width*0.80, rect.width*0.80)
 				if self.board[i][j]==1:
