@@ -5,6 +5,7 @@ sys_path.append(os_path.join(os_path.dirname(__file__),'..')) #adds parent dir o
 from game import Board, Button as ogButton
 import pygame as pg
 import numpy as np
+import time
 
 class comp: #to match with game.py; comp is short for comply/compliance
 	def __init__(self, width, height, screen):
@@ -24,14 +25,14 @@ class Button(ogButton): #Different class because different aesthetic
 		x, y, w, h = self.rect
 		notch=int(12/45*h)
 		return [
-			(x + notch,		y),
-			(x + w-notch,	y),
-			(x + w,			y + notch),
-			(x+w,			y+h-notch),
-			(x+w-notch,		y+h),
-			(x+notch,		y+h),
-			(x,				y + h-notch),
-			(x,		 y + notch),
+			(x + notch,	     y),
+			(x + w-notch,   y),
+			(x + w,		 y + notch),
+			(x+w,		   y+h-notch),
+			(x+w-notch,	     y+h),
+			(x+notch,	       y+h),
+			(x,			     y + h-notch),
+			(x,	      y + notch),
 		]
 
 
@@ -42,24 +43,38 @@ class Othello(Board):
 		self.height=height
 		self.screen=screen
 		self.scale=1
+		self.abs_scale=1
 
-		#colors:
-		self.p1tokcol=(0,0,0) #Davy's gray TODO settings...
+		#token images:
 		self.p2tokimg=pg.image.load("./pictures/white_token.jpg")
 		self.p1tokimg=pg.image.load("./pictures/black_token.jpeg")
 
+		#stuff above board
+		self.game_name_height=0.09*self.height
+		self.gap=0.01*self.height
+		self.uname_height=0.10*self.height
+		#self.num_ax_height=0.0x*self.height #numbering of columns
+
+		#stuff at left of board
+		self.num_ax_width=0.025*self.width
+		self.board_log_gap=0.025*self.width
+		self.log_right_pad=0.025*self.width
+
 		#initialising board
 		self.player1=player1
+		self.player1cut=self.player1 #incase uname too long
 		self.player2=player2
-		self.boardsize=4 #TODO Allow for ideas like small, medium, large boards
+		self.player2cut=self.player2
+		self.boardsize=8
 		self.board=np.zeros((self.boardsize, self.boardsize), dtype=int)
 		self.board[self.boardsize//2-1][self.boardsize//2-1]=self.board[self.boardsize//2][self.boardsize//2]=2
 		self.board[self.boardsize//2-1][self.boardsize//2]=self.board[self.boardsize//2][self.boardsize//2-1]=1
 		self.sqimg=pg.image.load("./pictures/square.png")
-		self.min_dim=min(self.width*2/3, self.height*0.92) #Right part is for logs
-		self.pad=0.04*self.min_dim
-		self.min_dim-=(self.boardsize-1)*self.pad/8 #gap between squares in board
-		self.min_dim-=2*self.pad #removing padding from our calculation for board sizes
+		self.min_dim=min(self.width*0.6, self.height*0.74) #Right part is for logs
+		self.sqpad=0.015*self.min_dim
+		self.bottompad=0.04*self.min_dim
+		self.min_dim-=(self.boardsize-1)*self.sqpad #gap between squares in board
+		self.min_dim-=self.bottompad #removing padding from our calculation for board sizes
 		self.sqsize=self.min_dim/self.boardsize
 
 		#Initialise turn number and player turn
@@ -77,48 +92,143 @@ class Othello(Board):
 		self.bold=pg.font.SysFont("consolas", self.font_size, bold=True)
 		self.normal=pg.font.SysFont("consolas", self.font_size)
 
+		#stuff above logs
+		#self.gap is same
+		self.button_height=0.06*self.height
+		self.log_heading_height=0.09*self.height
+
 		#logs surface object
-		self.log_width=self.width-self.min_dim-3*self.pad-self.boardsize*self.pad/8
-		self.log_height=self.height-2*self.pad-self.min_dim/8 #last term is due to button, not due to board.
+		self.log_x=self.num_ax_width+self.min_dim+self.board_log_gap+(self.boardsize+1)*self.sqpad
+		self.log_width=self.width-(self.log_right_pad+self.log_x)
+		self.log_y=self.height*0.27
+		self.log_height=self.height*0.63
 		#log_height will be used while blitting
-		self.log_screen=pg.Surface((self.log_width, 1000*self.scale), pg.SRCALPHA)
+		self.log_screen=pg.Surface((self.log_width, 1000*self.abs_scale), pg.SRCALPHA)
 		#info on this screen will be on a large area to allow scrolling
 		#NOTE: not all screens are visible. Visible screens need to be set using pg.display.set_mode(...)
-		#self.logcol=(30,30,30)
-		self.logcol=(76, 42, 21, 150)
+		self.logcol=(50, 28, 10, 180)
 		self.log=[]
 		self.scroll=0
 		self.prev_scroll=0
 		self.scroll_sensitivity=100
 
+		#stuff below logs
+		self.start_time=time.time()
+		self.time_height=0.08*self.height
+
 		#to match with game.py
 		self.playing_board=comp(self.min_dim, self.min_dim, self.screen)
 
 		#TODO: Make button for settings, handle clicking in play(), drawing in draw_board and maximize.
-		self.settings=Button("Settings", 2*self.pad+self.min_dim+self.boardsize*self.pad/8, self.pad, self.log_width/2, self.min_dim/8, self.normal)
+		self.settings=Button("Settings", self.log_x, 0.1*self.height, self.log_width*0.475, self.button_height, self.normal)
 		self.shown_settings=0
 
-		#Butto for help, handle clicking in play(), drawing in draw_board and maximize.
-		self.help=Button("Help", 2*self.pad+self.min_dim+self.boardsize*self.pad/8+self.log_width/2, self.pad, self.log_width/2, self.min_dim/8, self.normal)
+		#Button for help, handled clicking in play(), drawing in draw_board and maximize.
+		self.help=Button("Help", self.log_x+self.log_width*0.525, 0.1*self.height, self.log_width*0.475, self.button_height, self.normal)
 		self.shown_help=0
 
 	#TODO Settings for board colours, log colours & player token colours
 
-	def draw_board(self):
-		bks1=(72, 38, 13)
-		bks2=(83, 39, 2)
-		
+	def draw_game_name(self):
+		#bkgrnd
+		pg.draw.rect(self.screen, (54, 28, 10), pg.Rect(0, 0, self.width, self.game_name_height))
+		pg.draw.line(self.screen, (255, 193, 7), (0, self.game_name_height-1), (self.width, self.game_name_height-1))
+
+		#Nice symbol
+		symbol_font = pg.font.SysFont("dejavusans", int(self.game_name_height*0.5))
+		symbol=symbol_font.render("✦", True, (255,193,7))
+		self.screen.blit(symbol, (4*self.abs_scale, (self.game_name_height-symbol.get_height())//2))
+
+		#Player k's turn
+		text_font = pg.font.SysFont("consolas", int(self.game_name_height * 0.28), bold=True)
+		text_content=f"Player {'1' if self.turn==1 else '2'}'s Turn"
+		text=text_font.render(text_content, True, (255,193,7))
+			#Making the capsule
+		cw = text.get_width() + 20*self.abs_scale
+		ch = text.get_height() + 8*self.abs_scale
+		cx = self.width - cw - 8*self.abs_scale
+		cy = self.game_name_height// 2 - ch//2
+		pg.draw.rect(self.screen, (110, 70, 28), pg.Rect(cx, cy, cw, ch), border_radius=int(ch//2))
+		pg.draw.rect(self.screen, (255, 193, 7), pg.Rect(cx, cy, cw, ch), int(1*self.abs_scale), border_radius=int(ch//2))
+		self.screen.blit(text, (cx+10*self.abs_scale, int(cy+ch//2)-int(text.get_height()//2)))
+
+		#Game name
+		head_font=pg.font.SysFont("georgia", int(0.45*self.game_name_height))
+		head=head_font.render("Fangs vs Flames", True, (255,193,7))
+		self.screen.blit(head, ((cx-head.get_width())//2,(self.game_name_height-head.get_height())//2))
+
+	def draw_player_names(self):
+		p_font=pg.font.SysFont("georgia", int(self.uname_height*0.34), bold=True)
+		sub_font = pg.font.SysFont("consolas", int(self.uname_height*0.24))
+
+		for pnum in range(2):
+			#namecardbkg
+			x=self.num_ax_width+pnum*((self.min_dim+(self.boardsize+1)*self.sqpad)/2+0.005*self.width)
+			wid=(self.min_dim+(self.boardsize+1)*self.sqpad)/2-0.005*self.width
+			if pnum+1==self.turn: bkg, bordercol=(90, 55, 22),(255,193,7)
+			else: bkg, bordercol=(60, 35, 12), (100, 65, 25)
+			pg.draw.rect(self.screen, bkg, pg.Rect(x, 0.1*self.height, wid, self.uname_height), border_radius=int(7*self.abs_scale))
+			pg.draw.rect(self.screen, bordercol, pg.Rect(x, 0.1*self.height, wid, self.uname_height), int(2*self.abs_scale), border_radius=int(7*self.abs_scale))
+
+			#tokdenote
+			d_tok=self.uname_height*0.56
+			x_tok_rect=x+self.uname_height*0.15
+			y_tok_rect=0.1*self.height+(self.uname_height-d_tok)/2
+			rect=pg.Rect(x_tok_rect, y_tok_rect, d_tok, d_tok)
+
+			img=[self.p1tokimg, self.p2tokimg][pnum]
+			self.screen.blit(pg.transform.scale(img, (d_tok, d_tok)), rect)
+
+			#the txt
+			x_txt=x_tok_rect+d_tok+self.uname_height*0.12
+			#y_txt=y_tok_rect
+			width_txt=x+wid-x_txt-4*self.abs_scale
+
+			#name
+			name=[self.player1, self.player2][pnum]
+			if p_font.size(name+'i')[0]>width_txt: #the 'i' is to ensure text doesn't go too close to edge
+				name_cut=[self.player1cut, self.player2cut][pnum]
+				if p_font.size(name_cut+'i')[0]>width_txt or p_font.size(name_cut+'i')[0]<width_txt:
+					lo, hi = 0, len(name) - 2  # -2 reserves room for ".."
+					while lo < hi:
+						mid = (lo + hi + 1) // 2
+						if p_font.size(name[:mid] + "..")[0] <= width_txt:
+							lo = mid
+						else:
+							hi = mid - 1
+					name=name[:lo-1]+'...'
+					if pnum==0: self.player1cut=name
+					else: self.player2cut=name
+			show_pname=p_font.render(f'{name}', True, (255,193,0))
+			self.screen.blit(show_pname, (x_txt, 0.1*self.height+self.uname_height*0.08))
+
+			#num_tok_remain
+			used=[self.p1used, self.p2used][pnum]
+			show_sub=sub_font.render(f'{self.max_tok-used} tokens remain', True, (255,193,0))
+			self.screen.blit(show_sub, (x_txt, 0.1*self.height+self.uname_height*0.54))
+
+	def draw_board_and_num(self):
+		bks1=(40, 22, 8)
+		bks2=(80, 50, 20)
+
+		#1st bkgrnd for board
+		pg.draw.rect(self.screen, bks1, pg.Rect(self.num_ax_width, self.height*0.24, self.sqpad+self.boardsize*(self.sqsize+self.sqpad), self.sqpad+self.boardsize*(self.sqsize+self.sqpad)), border_radius=int(self.sqsize*0.12))
+
+		#2nd bkgrnd for board
+		pg.draw.rect(self.screen, bks2, pg.Rect(self.num_ax_width+2*self.abs_scale, self.height*0.24+2*self.abs_scale, self.sqpad+self.boardsize*(self.sqsize+self.sqpad)-4*self.abs_scale, self.sqpad+self.boardsize*(self.sqsize+self.sqpad)-4*self.abs_scale), border_radius=int(self.sqsize*0.096))
+
+		#board and numbering
 		for i in range (self.boardsize):
-			x=self.pad+i*self.min_dim/self.boardsize+i*self.pad/8
+			x=self.num_ax_width+i*self.min_dim/self.boardsize+(i+1)*self.sqpad
 			#horizontal numbering
 			num=self.bold.render(f'{i}', True, (255,193,7))
-			self.screen.blit(num, (x+self.sqsize//2-num.width//2, 2*self.pad))
+			self.screen.blit(num, (x+self.sqsize//2-num.width//2, 0.20*self.height))
 			for j in range (self.boardsize):
-				y=self.height*0.08+self.pad+j*self.min_dim/self.boardsize+j*self.pad/8
+				y=self.height*0.24+j*self.min_dim/self.boardsize+(j+1)*self.sqpad
 				if (i==0):
 					#vertical numbering
 					num=self.bold.render(f'{j}', True, (255,193,7))
-					off=(self.pad-num.width)//2 #not checking for this becoming -ve to prevent bleeding of text into board
+					off=(self.num_ax_width-num.width)//2 #not checking for this becoming -ve to prevent bleeding of text into board
 					self.screen.blit(num, (off, y+self.sqsize//2-num.height//2))
 				rect=pg.Rect(x, y, self.sqsize, self.sqsize)
 				sq_util=pg.transform.scale(self.sqimg, (rect.width, rect.height))
@@ -126,54 +236,103 @@ class Othello(Board):
 				
 				rect=pg.Rect(rect.center[0]-rect.width*0.40, rect.center[1]-rect.width*0.40, rect.width*0.80, rect.width*0.80)
 				if self.board[i][j]==1:
-					#pg.draw.circle(self.screen, self.p1tokcol, rect.center, int((rect.width/4)*1.1))
 					p1_utiltok=pg.transform.scale(self.p1tokimg, (rect.width, rect.width))
 					self.screen.blit(p1_utiltok, rect)
 				elif self.board[i][j]==2:
-					#pg.draw.circle(self.screen, self.p2tokcol, rect.center, rect.width//4)
 					p2_utiltok=pg.transform.scale(self.p2tokimg, (rect.width, rect.width))
 					self.screen.blit(p2_utiltok, rect)
 
+	def draw_buttons(self):
 		#for settings:
 		self.settings.draw(self.screen)
 
 		#for help:
 		self.help.draw(self.screen)
 
+	def draw_game_log_heading(self):
+		rect=pg.Rect(self.log_x, 0.17*self.height, self.log_width, self.log_heading_height)
+		pg.draw.rect(self.screen, (60, 35, 12), rect, border_radius=int(6*self.abs_scale))
+		pg.draw.rect(self.screen, (255, 193, 7), rect, int(self.abs_scale), border_radius=int(6*self.abs_scale))
+		log_heading_font=pg.font.SysFont("georgia", int(self.log_heading_height*0.46), bold=True)
+		log_header=log_heading_font.render("Move Log", True, (255, 193, 7))
+		self.screen.blit(log_header, (self.log_x+(self.log_width-log_header.width)/2, 0.17*self.height+(self.log_heading_height-log_header.height)/2))
+
+	def draw_time(self):
+		rect=pg.Rect(self.log_x, 0.91*self.height, self.log_width, self.time_height)
+		pg.draw.rect(self.screen, (60, 35, 12), rect, border_radius=int(6*self.abs_scale))
+		pg.draw.rect(self.screen, (255, 193, 7), rect, int(self.abs_scale), border_radius=int(6*self.abs_scale))
+		t_font=pg.font.SysFont("georgia", int(self.time_height*0.68), bold=True)
+		elapsed=time.time()-self.start_time
+		formatted=time.strftime("%H:%M:%S", time.gmtime(elapsed))
+		samay=t_font.render(formatted,True,(255,193,7))
+		self.screen.blit(samay, (self.log_x+(self.log_width-samay.width)/2, 0.91*self.height+(self.time_height-samay.height)/2+2*self.abs_scale))
+
+	def draw_board(self):
+		self.draw_game_name()
+		self.draw_player_names()
+		self.draw_board_and_num()
+		self.draw_buttons()
+		self.draw_game_log_heading()
+		self.draw_time()
+
 	def maximize(self,width,height,screen):
 		#fonts
 		self.scale=min(width/self.width, height/self.height)
+		self.abs_scale*=self.scale
 		self.font_size=int(self.font_size*self.scale)
 		self.normal=pg.font.SysFont("consolas", self.font_size)
 		self.bold=pg.font.SysFont("consolas", self.font_size, bold=True)
 
+		#fundamental attributes
 		self.width=width
 		self.height=height
 		self.screen=screen
-		self.min_dim=min(self.width*2/3, self.height*0.92) #Right part is for logs
-		self.pad=0.04*self.min_dim
-		self.min_dim-=(self.boardsize-1)*self.pad/8 #gap between squares in board
-		self.min_dim-=2*self.pad #removing padding from our calculation for board sizes
-		self.sqsize=self.min_dim/self.boardsize
-		self.draw_board()
 
-		#for log
-		self.log_width=self.width-self.min_dim-3*self.pad-self.boardsize*self.pad/8
-		self.log_height=self.height-2*self.pad-self.min_dim/8 #last term is due to button, not due to board.
+		#stuff above board
+		self.game_name_height=0.09*self.height
+		self.gap=0.01*self.height
+		self.uname_height=0.10*self.height
+
+		#stuff at left of board
+		self.num_ax_width=0.025*self.width
+		self.board_log_gap=0.025*self.width
+		self.log_right_pad=0.025*self.width
+
+		#board
+		self.min_dim=min(self.width*0.6, self.height*0.74) #Right part is for logs
+		self.sqpad=0.015*self.min_dim
+		self.bottompad=0.04*self.min_dim
+		self.min_dim-=(self.boardsize-1)*self.sqpad #gap between squares in board
+		self.min_dim-=self.bottompad #removing padding from our calculation for board sizes
+		self.sqsize=self.min_dim/self.boardsize
+
+		#stuff above logs
+		#self.gap is same
+		self.button_height=0.06*self.height
+		self.log_heading_height=0.09*self.height
+
+		#logs surface object
+		self.log_x=self.num_ax_width+self.min_dim+self.board_log_gap+(self.boardsize+1)*self.sqpad
+		self.log_width=self.width-(self.log_right_pad+self.log_x)
+		self.log_y=self.height*0.27
+		self.log_height=self.height*0.63
+		self.scroll*=self.scale
+		self.prev_scroll*=self.scale
 		#log_height will be used while blitting
-		temp=self.log_height
-		self.scroll=max(self.scroll-(self.log_height-temp), 0)
-		self.log_screen=pg.Surface((self.log_width, 1000*self.scale), pg.SRCALPHA) #info on this screen will be on a large area to allow scrolling
-		self.to_log()
-		self.display_log()
+		self.log_screen=pg.Surface((self.log_width, 1000*self.abs_scale), pg.SRCALPHA)
+
+		#stuff below logs
+		self.time_height=0.08*self.height
 
 		#for settings
-		self.settings=Button("Settings", 2*self.pad+self.min_dim+self.boardsize*self.pad/8, self.pad, self.log_width/2, self.min_dim/8, self.normal)
-		self.settings.draw(self.screen)
+		self.settings=Button("Settings", self.log_x, 0.1*self.height, self.log_width*0.475, self.button_height, self.normal)
 
 		#for help
-		self.help=Button("Help", 2*self.pad+self.min_dim+self.boardsize*self.pad/8+self.log_width/2, self.pad, self.log_width/2, self.min_dim/8, self.normal)
-		self.help.draw(self.screen)
+		self.help=Button("Help", self.log_x+self.log_width*0.525, 0.1*self.height, self.log_width*0.475, self.button_height, self.normal)
+
+#		self.draw_board()
+#		self.to_log()
+#		self.display_log()
 
 	#TODO button for displaying rules.
 
@@ -207,10 +366,10 @@ class Othello(Board):
 			self.log_screen.blit(main_surf, (10,y))
 			y+=(main_surf.get_height()+10)
 		if y>self.scroll+self.log_height: self.scroll=y-self.log_height #autoscroll
-		return (970-25*self.scale-y<0) #if returns True, pop[0]
+		return (970-25*self.abs_scale-y<0) #if returns True, pop[0]
 
 	def display_log(self):
-		tlc=(2*self.pad+self.min_dim+self.boardsize*self.pad/8, self.height-self.log_height-self.pad) #top-left coordinate of log screen
+		tlc=(self.log_x, self.log_y) #top-left coordinate of log screen
 		capture=pg.Rect(0, self.scroll, self.log_width, self.log_height) #Rect(left, top, width, height) -> Rect
 		#"Capture" this part of log_screen to blit
 		self.screen.blit(self.log_screen, tlc, capture)
@@ -220,14 +379,6 @@ class Othello(Board):
 			if self.turn==2:
 				self.turn_num+=1
 			self.turn=3-self.turn
-		#TODO: animation
-		name=[self.player1, self.player2][self.turn-1]
-		max_len=int(self.min_dim*(1+(self.boardsize-1)/8)/self.font_size)
-		if len(name)<=max_len:
-			show_pname=self.bold.render(f'{name}', True, (255,193,0)).convert_alpha()
-		else:
-			show_pname=self.bold.render(f'{name}'[:max_len-3]+'...', True, (255, 193, 0)).convert_alpha()
-		self.screen.blit(show_pname, (self.pad, self.pad))
 
 	def validate_pos(self, i, j): #returns dictionary of 8 positions: in each direction, the nearest token of same colour which is not (i,j). If no such token, that position is set to (i,j)
 		dest_pos=dict()
@@ -315,9 +466,9 @@ class Othello(Board):
 	def get_click_sq(self, event): #returns False upon invalid event, else returns a tuple (i,j) representing a rectangle.
 		mx,my=event.pos
 		for i in range(self.boardsize):
-			x=self.pad+i*self.min_dim/self.boardsize+i*self.pad/8
+			x=self.num_ax_width+i*self.min_dim/self.boardsize+(i+1)*self.sqpad
 			for j in range(self.boardsize):
-				y=self.height*0.08+self.pad+j*self.min_dim/self.boardsize+j*self.pad/8
+				y=self.height*0.24+j*self.min_dim/self.boardsize+(j+1)*self.sqpad
 				rect=pg.Rect(x, y, self.sqsize, self.sqsize)
 				if rect.collidepoint(mx, my):
 					if self.board[i][j]==0:
@@ -328,10 +479,14 @@ class Othello(Board):
 	def play(self, turn, event): #the variable turn is taken just to match game.py
 		#returns False if something invalid occurs, else returns true
 		self.draw_board()
-		if self.shown_help:
+		if self.shown_help==1:
 			self.prev_scroll=self.display_help()
-		else:
+		elif self.shown_help==2:
 			self.scroll=self.prev_scroll
+			self.shown_help=0 #made the change to prevent self.scroll from getting trapped (3 states were thus required)
+			self.to_log()
+			self.display_log()
+		else:
 			self.to_log()
 			self.display_log()
 		if not self.exists_valid():
@@ -347,11 +502,11 @@ class Othello(Board):
 			self.shown_settings=1-self.shown_settings
 			#TODO
 		elif self.help.handle_event(event):
-			self.shown_help=1-self.shown_help
+			self.shown_help+=1
 		elif event.type == pg.MOUSEWHEEL:
 			temp=self.scroll
 			self.scroll-=event.y*self.scroll_sensitivity
-			if not (self.scroll>=0 and self.scroll<=1000*self.scale-self.log_height): self.scroll=temp
+			if not (self.scroll>=0 and self.scroll<=1000*self.abs_scale-self.log_height): self.scroll=temp
 		else:
 			self.sk[self.turn-1]=0
 			if event.type == pg.MOUSEBUTTONDOWN: event_status=self.get_click_sq(event)
