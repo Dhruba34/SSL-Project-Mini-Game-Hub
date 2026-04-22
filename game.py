@@ -675,7 +675,10 @@ if __name__=="__main__":
             if(o!=3):
                 is_menu=False
                 fading=True
-                board.transition.start(o,"./pictures/tictactoe.png",board)
+                if o==0:
+                    board.transition.start(o,"./pictures/tictactoe.png",board)
+                elif o==2:
+                    board.transition.start(o,"./pictures/connect4.png",board)
                 #print("hi")
         else:
             if fading:

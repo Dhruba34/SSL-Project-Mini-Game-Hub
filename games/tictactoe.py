@@ -220,6 +220,7 @@ class Tictactoe(Board):
         
     def turn_change(self,changed):
         if self.animate:
+            self.turn=0
             return
         if changed:
             if self.turn==1:
