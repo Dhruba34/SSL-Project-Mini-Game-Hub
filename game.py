@@ -355,6 +355,10 @@ class Board:
         self.transition = TransitionManager(self.screen)
         self.t0=None
         self.snapshot=None
+        self.resign1=None
+        self.resign2=None
+        self.quit=None
+        self.options=None
 
     def draw_corner_brackets(self, surf, rx, ry, rw, rh, arm=18, color=None, alpha=255, thick=2):
         color = color or self._C_ACCENT
@@ -395,6 +399,30 @@ class Board:
 
     def page(self):
         self.screen.blit(self.bg,(0,0))
+    def another(self,event):
+        w,h=self.width,self.height
+        title=(pygame.font.SysFont("Consolas",int(w*0.319), bold=True),0.2415*w,0.1146*h,"Sort Mode of Leaderboard",(0,180,255),True,0.00275*w,50)
+        sec_font=pygame.font.SysFont("Consolas", int(w*0.0154))
+
+        select=(sec_font,0.2415*w,0.254*h,"SELECT  &  PRIORITISE  COLUMNS",(0,180,255),False)
+        rev=(sec_font,0.742*w,0.254*h,"REVERSE",(0,180,255),False)
+        cx=0.28*w
+        row_y   = [0.31878,0.38356,0.44834,0.51312,0.5779,0.64268,0.70746]
+        labels  = [
+            "Game name lexicographically",
+            "Username",
+            "No. of Wins",
+            "No. of Losses",
+            "No. of Draws",
+            "Win / Loss ratio",
+            "No. of Games played of this type",
+        ]
+        objs    = [self.o1, self.o2, self.o3, self.o4,
+                   self.o5, self.o6, self.o7]
+        checks=[(cx,row_y[i],labels[i],objs[i]) for i in range(7)]
+        buts=[("Generate",0.588*w,0.78044*h,0.165*w,0.0984*h,pygame.font.SysFont("Consolas", 0.022*w, bold=True)),
+              ()]
+        self.fancy_screen([title,select,rev],checks,buts)
 
     def show_leaderboard(self, event):
         """
@@ -710,7 +738,12 @@ class Board:
             pygame.quit()
             sys.exit()
         return False
-
+    def options(self,width,height,pos,d,event):
+        if self.options==None:
+            self.options=Button("OPTIONS",pos[0],pos[1],width,height,pygame.font.SysFont("Consolas",0.5*width,bold=True))
+        self.options.draw(self.screen)
+        if self.options.handle_event(event):
+            pass
     def play(self):
         pass
 
