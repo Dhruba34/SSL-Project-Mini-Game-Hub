@@ -72,6 +72,7 @@ class draw:
 
 class Connect4(Board):
     def __init__(self,width,height,screen,name1,name2):
+        super().__init__(name1, name2, width, height, stats=None, screen=screen)
         self.playing_board=draw(width,height,screen,name1,name2)
         self.board=np.zeros((7,7))
         self.screen=screen
@@ -84,6 +85,10 @@ class Connect4(Board):
         self.name2=name2
         self.drop_anim = None
         self.DROP_SPEED = 7  # rows per second
+        self.p1resign=False
+        self.p2resign=False
+        self.quitted=False
+        self.style=((232,164,74),(14,10,5),(122,78,26),(232,164,74),(139,94,42),(30,18,8))
 
     def maximize(self,width,height,screen):
         self.playing_board=draw(width,height,screen,self.name1,self.name2)
@@ -105,6 +110,19 @@ class Connect4(Board):
         return -1
 
     def play(self, turn, event=None):
+        w,h=self.screen.get_width(),self.screen.get_height()
+        self.playing_board.draw_board(self.board,event)  # always redraw full board
+        temp=super().option_screen(0.13*w,0.0827*h,(0.0156*w,0.893*h),event,self.style)
+        if type(temp)!=bool:
+            if temp==1:
+                self.p1resign=True
+            elif temp==2:
+                self.p2resign=True
+            else:
+                self.quitted=True
+            return False
+        if temp:
+            return False
         mx, my = pygame.mouse.get_pos()
         self.playing_board.pointer_col = -1 if self.drop_anim is not None else self._col_from_mx(mx)
 

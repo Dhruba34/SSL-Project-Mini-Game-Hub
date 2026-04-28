@@ -137,21 +137,32 @@ class TransitionManager:
 
 
 class Button:
-    def __init__(self, text, x, y, w, h, font):
+    def __init__(self, text, x, y, w, h, font,offset=0,style=None):
         self.rect = pygame.Rect(x, y, w, h)
         self.text = text
         self.font = font
         self.hovered = False
         self.pulse_t = 0.0
         self._last_draw_time = None
-        self.accent = (0,200,255)
-        self.bg     = (0,13,26)
-        self.dim    = (26,96,144)
+        if style==None:
+            self.accent = (0,200,255)
+            self.bg     = (0,13,26)
+            self.dim    = (26,96,144)
+        else:
+            self.accent,self.bg,self.dim=style[0],style[1],style[2]
+        self.offset=offset
 
-    def assign(self, text, x, y, w, h, font):
+    def assign(self, text, x, y, w, h, font,offset=0,style=None):
         self.rect = pygame.Rect(x, y, w, h)
         self.text = text
         self.font = font
+        self.offset=offset
+        if style==None:
+            self.accent = (0,200,255)
+            self.bg     = (0,13,26)
+            self.dim    = (26,96,144)
+        else:
+            self.accent,self.bg,self.dim=style[0],style[1],style[2]
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
@@ -197,7 +208,7 @@ class Button:
             pygame.draw.line(screen,(*dim,180),(x,y+notch),(x,y+h//2+notch//2),1)
         text_color=(255,255,255) if self.hovered else accent
         txt=self.font.render(self.text,True,text_color)
-        screen.blit(txt,(x+(w-txt.get_width())//2,y+(h-txt.get_height())//2))
+        screen.blit(txt,(x+(w-txt.get_width())//2+self.offset,y+(h-txt.get_height())//2))
 
 
 class Checkbox:
@@ -242,26 +253,30 @@ class Checkbox:
     def deselect(self):
         self.selected = False
 
-    def draw(self, screen):
+    def draw(self, screen,style=None):
         r   = self.radius
+        accent=(0,180,255) if style==None else style[3]
+        border=(0,100,200) if style==None else style[4]
+        panel=(4,18,40) if style==None else style[5]
         box = pygame.Rect(self.x - r, self.y - r, r * 2, r * 2)
         glow_alpha = 180 if self.selected else 60
         for spread in (r + 6, r + 4, r + 2):
             glow_surf = pygame.Surface((spread * 2, spread * 2), pygame.SRCALPHA)
-            pygame.draw.rect(glow_surf, (0, 160, 255, glow_alpha // (spread - r + 1)),
+            pygame.draw.rect(glow_surf, (*accent, glow_alpha // (spread - r + 1)),
                              (0, 0, spread * 2, spread * 2), border_radius=4)
             screen.blit(glow_surf, (self.x - spread, self.y - spread))
         if self.selected:
-            pygame.draw.rect(screen, (0, 60, 120), box, border_radius=3)
+            pygame.draw.rect(screen, (border[0]*0.6,0.6*border[1],0.6*border[2]), box, border_radius=3)
         else:
-            pygame.draw.rect(screen, (2, 15, 35), box, border_radius=3)
+            pygame.draw.rect(screen, panel, box, border_radius=3)
 
-        pygame.draw.rect(screen, (0, 140, 220), box, 1, border_radius=3)
+        pygame.draw.rect(screen, (accent[0],accent[1]*7/9,accent[2]*220/255), box, 1, border_radius=3)
         if self.selected:
             badge_font = self.font_box
-            num = badge_font.render(str(self.priority), True, (0, 220, 255))
+            num = badge_font.render(str(self.priority), True, (accent[0],accent[1]*220/180,accent[2]))
             screen.blit(num, (box.center[0] - num.get_width()//2, box.center[1]-num.get_height()//2))
-        text_col = (180, 220, 255) if self.selected else (60, 110, 160)
+        col=(180,220,255) if style==None else (220,255,180)
+        text_col = col if self.selected else (border[1]*0.6,border[1],border[2]*16/22)
         text_surf = self.font.render(self.text, True, text_col)
         tx = self.x + r + 10
         ty = self.y - text_surf.get_height() // 2
@@ -275,14 +290,14 @@ class Checkbox:
         if self.reverse:
             for spread in (radio_r + 5, radio_r + 3):
                 gs = pygame.Surface((spread * 2, spread * 2), pygame.SRCALPHA)
-                pygame.draw.circle(gs, (0, 200, 255, 40), (spread, spread), spread)
+                pygame.draw.circle(gs, (accent[0],border[1]*20/18,accent[2], 40), (spread, spread), spread)
                 screen.blit(gs, (rx - spread, ry - spread))
 
-        pygame.draw.circle(screen, (0, 80, 140), (rx, ry), radio_r)
-        pygame.draw.circle(screen, (0, 140, 220), (rx, ry), radio_r, 1)
+        pygame.draw.circle(screen, panel, (rx, ry), radio_r)
+        pygame.draw.circle(screen, (accent[0],accent[1]*7/9,accent[2]), (rx, ry), radio_r, 1)
 
         if self.reverse:
-            pygame.draw.circle(screen, (0, 200, 255), (rx, ry), radio_r // 2)
+            pygame.draw.circle(screen, (accent[0],accent[1]*220/180,accent[2]), (rx, ry), radio_r // 2)
 
         self.radiorect = pygame.Rect(rx - radio_r, ry - radio_r,
                                      radio_r * 2, radio_r * 2)
@@ -317,20 +332,17 @@ class Menu:
 
 
 class Board:
-    _C_BG       = (2,   10,  24)   # deep navy fill
     _C_PANEL    = (4,   18,  40)   # panel surface
-    _C_GRID     = (8,   22,  48)   # grid line colour
     _C_BORDER   = (0,  100, 200)   # accent border
     _C_ACCENT   = (0,  180, 255)   # bright cyan-blue
-    _C_DIM      = (0,   60, 120)   # dim accent
-    _C_TEXT     = (160, 210, 255)  # primary text
-    _C_MUTED    = (50,  100, 150)  # muted text / section labels
-    _C_GLOW     = (0,  140, 220)   # glow tint
 
-    def __init__(self,player1,player2,width,height,stats):
+    def __init__(self,player1,player2,width,height,stats,screen=None):
         self.player1=player1
         self.player2=player2
-        self.screen=pygame.display.set_mode((width,height),pygame.RESIZABLE)
+        if screen==None:
+            self.screen=pygame.display.set_mode((width,height),pygame.RESIZABLE)
+        else:
+            self.screen=screen
         self.stats=stats
         self.width=width
         self.height=height
@@ -358,7 +370,12 @@ class Board:
         self.resign1=None
         self.resign2=None
         self.quit=None
-        self.options=None
+        self.options=Button("",0,0,0,0,None)
+        self.resign1=Button("",0,0,0,0,None)
+        self.resign2=Button("",0,0,0,0,None)
+        self.quit=Button("",0,0,0,0,None)
+        self.resume=Button("",0,0,0,0,None)
+        self.showing_options=False
 
     def draw_corner_brackets(self, surf, rx, ry, rw, rh, arm=18, color=None, alpha=255, thick=2):
         color = color or self._C_ACCENT
@@ -375,10 +392,10 @@ class Board:
             pygame.draw.line(s, c, (cx, cy), (cx + ex*arm/800*self.width, cy + ey*arm/400*self.height), thick)
         surf.blit(s, (rx, ry))
 
-    def draw_hbar(self, surf, x, y, w, glow_alpha=60):
+    def draw_hbar(self, surf, x, y, w, glow_alpha=60,accent=_C_ACCENT,border=_C_BORDER):
         """Horizontal rule with a short bright left cap."""
-        color = (0,  180, 255)
-        dim   = (0,   60, 120)
+        color = accent
+        dim   = (0.6*border[0],0.6*border[1],0.6*border[2])
         pygame.draw.line(surf, dim, (x, y), (x + w, y), 1)
         cap = min(w, 80)
         for i in range(4, 0, -1):
@@ -399,15 +416,20 @@ class Board:
 
     def page(self):
         self.screen.blit(self.bg,(0,0))
-    def another(self,event):
+    def show_leaderboard(self,event,style=None):
         w,h=self.width,self.height
-        title=(pygame.font.SysFont("Consolas",int(w*0.319), bold=True),0.2415*w,0.1146*h,"Sort Mode of Leaderboard",(0,180,255),True,0.00275*w,50)
+        if style==None:
+            accent=(0,180,255)
+        else:
+            accent=style[3]
+        title=(pygame.font.SysFont("Consolas",int(w*0.0319), bold=True),"Sort Mode of Leaderboard",accent,0.2415*w,0.1146*h,True,0.00275*w,50)
         sec_font=pygame.font.SysFont("Consolas", int(w*0.0154))
 
-        select=(sec_font,0.2415*w,0.254*h,"SELECT  &  PRIORITISE  COLUMNS",(0,180,255),False)
-        rev=(sec_font,0.742*w,0.254*h,"REVERSE",(0,180,255),False)
+        select=(sec_font,"SELECT  &  PRIORITISE  COLUMNS",accent,0.2415*w,0.254*h,False)
+        txt=sec_font.render("REVERSE",True,(0,0,0))
+        rev=(sec_font,"REVERSE",accent,0.742*w-txt.get_width(),0.254*h,False)
         cx=0.28*w
-        row_y   = [0.31878,0.38356,0.44834,0.51312,0.5779,0.64268,0.70746]
+        row_y   = [0.31878*h,0.38356*h,0.44834*h,0.51312*h,0.5779*h,0.64268*h,0.70746*h]
         labels  = [
             "Game name lexicographically",
             "Username",
@@ -420,97 +442,10 @@ class Board:
         objs    = [self.o1, self.o2, self.o3, self.o4,
                    self.o5, self.o6, self.o7]
         checks=[(cx,row_y[i],labels[i],objs[i]) for i in range(7)]
-        buts=[("Generate",0.588*w,0.78044*h,0.165*w,0.0984*h,pygame.font.SysFont("Consolas", 0.022*w, bold=True)),
-              ()]
-        self.fancy_screen([title,select,rev],checks,buts)
-
-    def show_leaderboard(self, event):
-        """
-        Sci-fi redesign of the leaderboard sort-options page.
-        All original logic (checkbox select/deselect, priority tracking,
-        reverse radio, Generate + Visualize buttons) is unchanged.
-        """
-        w, h = self.width, self.height
-        pw = int(w * 0.55)
-        ph = int(h * 0.82)
-        px = (w - pw) // 2
-        py = (h - ph) // 2
-        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-        overlay.fill((0, 6, 18, 210))
-        self.screen.blit(overlay, (0, 0))
-        panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
-        panel.fill((*self._C_PANEL, 245))
-        self.screen.blit(panel, (px, py))
-        glow_s = pygame.Surface((pw, ph), pygame.SRCALPHA)
-        for radius in range(int(120/400*self.height), 0, int(-20/400*self.height)):
-            alpha = max(0, 18 - (120 - radius*400/self.height) // 6)
-            pygame.draw.circle(glow_s, (0,180,255, alpha),
-                               (pw - 40*400/self.height, 40*400/self.height), radius)
-        self.screen.blit(glow_s, (px, py))
-        pygame.draw.rect(self.screen, self._C_BORDER,
-                         (px, py, pw, ph), 1, border_radius=4)
-        self.draw_corner_brackets(self.screen, px, py, pw, ph,
-                                   arm=16, color=(0,180,255), alpha=200)
-        title_font = pygame.font.SysFont("Consolas",int(pw * 0.058), bold=True)
-        title_x = px + int(pw * 0.03)
-        title_y = py + int(ph * 0.03)
-        self.glow_text(self.screen, title_font,"Sort Mode of Leaderboard",(0,180,255), title_x, title_y,spread=int(pw*0.005), glow_alpha=50)
-        self.draw_hbar(self.screen,title_x, title_y + title_font.get_height()*1.2,pw - int(pw * 0.12))
-        sec_font = pygame.font.SysFont("Consolas", int(pw * 0.028))
-        sec_surf = sec_font.render("SELECT  &  PRIORITISE  COLUMNS",True, (0,180,255))
-        self.screen.blit(sec_surf,(title_x,py+ph*0.2))
-        rev_font  = pygame.font.SysFont("Consolas", int(pw * 0.030))
-        rev_label = rev_font.render("REVERSE", True, (0,180,255))
-        rev_x     = px + int(pw * 0.94)
-        rev_y     = py + int(ph * 0.2)
-        self.screen.blit(rev_label, (rev_x - rev_label.get_width(), rev_y))
-        cx      = px + int(pw * 0.10)
-        row_y   = [
-            py + int(ph * 0.279),
-            py + int(ph * 0.358),
-            py + int(ph * 0.437),
-            py + int(ph * 0.516),
-            py + int(ph * 0.595),
-            py + int(ph * 0.674),
-            py + int(ph * 0.753),
-        ]
-        labels  = [
-            "Game name lexicographically",
-            "Username",
-            "No. of Wins",
-            "No. of Losses",
-            "No. of Draws",
-            "Win / Loss ratio",
-            "No. of Games played of this type",
-        ]
-        objs    = [self.o1, self.o2, self.o3, self.o4,
-                   self.o5, self.o6, self.o7]
-
-        for i, obj in enumerate(objs):
-            obj.assign(cx, row_y[i], pw, labels[i])
-            if obj.selected:
-                stripe = pygame.Surface((obj.radius*2.1,obj.radius*2.1),
-                                        pygame.SRCALPHA)
-                stripe.fill((0, 100, 200, 18))
-                self.screen.blit(stripe,(cx-obj.radius*1.05,row_y[i] - obj.radius*1.05))
-            obj.draw(self.screen)
-
-        div_y = py + int(ph * 0.802)
-        self.draw_hbar(self.screen, px + int(pw * 0.04), div_y,pw - int(pw * 0.08))
-
-        btn_font = pygame.font.SysFont("Consolas", int(pw * 0.040), bold=True)
-        self.ldb_but.assign("Generate",
-                            px + int(pw * 0.66),
-                            py + int(ph * 0.842),
-                            int(pw * 0.3),
-                            int(ph * 0.12),
-                            btn_font)
-        self.charts.assign("Visualize",
-                           px + int(pw * 0.04),
-                           py + int(ph * 0.842),
-                           int(pw * 0.3),
-                           int(ph * 0.12),
-                           btn_font)
+        self.ldb_but.assign("Generate",0.588*w,0.78044*h,0.165*w,0.0984*h,pygame.font.SysFont("Consolas", int(0.022*w), bold=True),style=style)
+        self.charts.assign("Visualize",0.247*w,0.7804*h,0.165*w,0.0984*h,pygame.font.SysFont("Consolas", int(0.022*w), bold=True),style=style)
+        bars=[(0.2415*w,0.1146*h+title[0].get_height()*1.2,0.484*w),(0.247*w,0.74764*h,0.506*w)]
+        self.fancy_screen([title,select,rev],checks,bars,style)
         self.ldb_but.draw(self.screen)
         self.charts.draw(self.screen)
 
@@ -546,6 +481,62 @@ class Board:
             print(cmd)
             os.system(cmd)
         return False
+
+
+    def fancy_screen(self,texts,checks,bars,style=None):
+        """
+        Sci-fi redesign of the leaderboard sort-options page.
+        All original logic (checkbox select/deselect, priority tracking,
+        reverse radio, Generate + Visualize buttons) is unchanged.
+        """
+        w, h = self.screen.get_size()
+        pw = int(w * 0.55)
+        ph = int(h * 0.82)
+        px = (w - pw) // 2
+        py = (h - ph) // 2
+        if style==None:
+            accentc,borderc,panelc=self._C_ACCENT,self._C_BORDER,self._C_PANEL
+        else:
+            accentc,borderc,panelc=style[3],style[4],style[5]
+        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        overlay.fill((0, 6, 18, 210))
+        self.screen.blit(overlay, (0, 0))
+        panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
+        panel.fill((*panelc, 245))
+        self.screen.blit(panel, (px, py))
+        glow_s = pygame.Surface((pw, ph), pygame.SRCALPHA)
+        for radius in range(int(120/400*self.height), 0, int(-20/400*self.height)):
+            alpha = max(0, 18 - (120 - radius*400/self.height) // 6)
+            pygame.draw.circle(glow_s, (*accentc, alpha),(pw - 40*400/self.height, 40*400/self.height), radius)
+        self.screen.blit(glow_s, (px, py))
+        pygame.draw.rect(self.screen, borderc,
+                         (px, py, pw, ph), 1, border_radius=4)
+        self.draw_corner_brackets(self.screen, px, py, pw, ph,
+                                   arm=16, color=borderc, alpha=200)
+        
+        for i in texts:
+            if i[5]:
+                self.glow_text(self.screen,*i[:5],spread=i[6],glow_alpha=i[7])
+            else:
+                self.glow_text(self.screen,*i[:-1])
+        
+
+        for i in checks:
+            obj=i[3]
+            obj.assign(i[0], i[1], pw, i[2])
+            if obj.selected:
+                stripe = pygame.Surface((obj.radius*2.1,obj.radius*2.1),
+                                        pygame.SRCALPHA)
+                stripe.fill((*borderc, 18))
+                self.screen.blit(stripe,(i[0]-obj.radius*1.05,i[1] - obj.radius*1.05))
+            obj.draw(self.screen,style)
+
+        for bar in bars:
+            if style==None:
+                self.draw_hbar(self.screen,*bar)
+            else:
+                self.draw_hbar(self.screen,*bar,accent=style[3],border=style[4])
+        
 
     def draw_results(self, text, color=(171, 64, 2)):
         w, h = self.screen.get_size()
@@ -600,6 +591,7 @@ class Board:
         self.screen.blit(sub, (sx, sy))
 
     def show_results(self, winner, event):
+        self.options=None
         if self.t0 is None:
             self.t0 = time.time()
         if winner == 0:
@@ -613,8 +605,8 @@ class Board:
                 return True
         return False
 
-    def draw_gauge(self, ax, values, texts, color):
-        gap       = 90
+    def draw_gauge(self, ax, values, texts, colors, title=""):
+        gap = 80
         total_arc = 360 - gap
         start_angle = 90 + gap / 2
         filled_frac = [
@@ -622,89 +614,190 @@ class Board:
             values["loss"] / values["games"],
             values["draw"] / values["games"],
         ]
-        filled_deg = list(total_arc * np.array(filled_frac)/360)
-        ring_width = 0.22
-        ax.pie(
-            filled_deg + [gap/360],
+        filled_deg = list(total_arc * np.array(filled_frac) / 360)
+        ring_width = 0.28
+
+        wedges, _ = ax.pie(
+            filled_deg + [gap / 360],
             startangle=start_angle,
-            colors=color + ["none"],
-            wedgeprops=dict(width=ring_width, edgecolor="none"),
+            colors=colors + ["none"],
+            wedgeprops=dict(width=ring_width, edgecolor="#1a0f08", linewidth=1.5),
             counterclock=False,
         )
-        for i in range(len(texts)):
-            ax.text(0,-0.3*(i-(len(texts)-1)/2),texts[i],ha="center",va="center",fontsize=10,fontweight="bold",color="white")
+        # Subtle inner ring shadow
+        ax.add_patch(plt.Circle((0, 0), 1 - ring_width - 0.04,
+                                color="#12080300", zorder=0))
+
+        label_colors = ["#E8A44A", "#C0523A", "#6B9E7A"]
+        icons        = ["▲", "▼", "—"]
+        for i, (text, lc, icon) in enumerate(zip(texts, label_colors, icons)):
+            offset = 0.28 * (i - (len(texts) - 1) / 2)
+            ax.text(0, -offset - 0.04, f"{icon} {text}",
+                    ha="center", va="center",
+                    fontsize=9, fontweight="bold",
+                    color=lc, fontfamily="monospace")
+
+        if title:
+            ax.text(0, -1.35, title,
+                    ha="center", va="center",
+                    fontsize=10, fontweight="bold",
+                    color="#D4A868", fontfamily="monospace")
         ax.axis("off")
 
+
     def draw_charts(self):
-        stat_store=[{"games":0,"win":0,"loss":0,"draw":0},{"games":0,"win":0,"loss":0,"draw":0}]
-        win_players={}
-        game_counts=[0,0,0]
-        with open("history.csv","r") as f:
+        stat_store = [
+            {"games": 0, "win": 0, "loss": 0, "draw": 0},
+            {"games": 0, "win": 0, "loss": 0, "draw": 0},
+        ]
+        win_players = {}
+        game_counts = [0, 0, 0]
+
+        with open("history.csv", "r") as f:
             for line in f:
-                arr=line.split(",")
-                arr[6]=arr[6].removesuffix("\n")
-                if arr[1]==self.player1 or arr[2]==self.player1:
-                    stat_store[0]["games"]+=1
-                    if arr[0]=="DRAW":
-                        stat_store[0]["draw"]+=1
-                    else:
-                        if arr[3]==self.player1:
-                            stat_store[0]["win"]+=1
+                arr = line.split(",")
+                arr[6] = arr[6].removesuffix("\n")
+                for idx, player in enumerate([self.player1, self.player2]):
+                    if arr[1] == player or arr[2] == player:
+                        stat_store[idx]["games"] += 1
+                        if arr[0] == "DRAW":
+                            stat_store[idx]["draw"] += 1
+                        elif arr[3] == player:
+                            stat_store[idx]["win"] += 1
                         else:
-                            stat_store[0]["loss"]+=1
-                if arr[1]==self.player2 or arr[2]==self.player2:
-                    stat_store[1]["games"]+=1
-                    if arr[0]=="DRAW":
-                        stat_store[1]["draw"]+=1
-                    else:
-                        if arr[3]==self.player2:
-                            stat_store[1]["win"]+=1
-                        else:
-                            stat_store[1]["loss"]+=1
-                if arr[3] in win_players.keys():
-                    win_players[arr[3]]+=1
-                elif arr[3]!="NA":
-                    win_players[arr[3]]=1
-                if arr[6]=="TicTacToe":
-                    game_counts[0]+=1
-                elif arr[6]=="Othello":
-                    game_counts[1]+=1
+                            stat_store[idx]["loss"] += 1
+                if arr[3] in win_players:
+                    win_players[arr[3]] += 1
+                elif arr[3] != "NA":
+                    win_players[arr[3]] = 1
+                if arr[6] == "TicTacToe":
+                    game_counts[0] += 1
+                elif arr[6] == "Othello":
+                    game_counts[1] += 1
                 else:
-                    game_counts[2]+=1
-        wingames=sorted(win_players.items(),key=lambda x:x[1],reverse=True)[:5]
-        fig, axes = plt.subplots(2,2)
-        fig.patch.set_facecolor("#0d1b2a")
-        colors = ["#00cfcf", "#f97316","#1F7716"]
-        games1 = stat_store[0]["games"]
-        games2 = stat_store[1]["games"]
-        self.draw_gauge(axes[0][0],stat_store[0],
-                        [f'wins:{stat_store[0]["win"]/games1*100:.2f}',
-                         f'loss:{stat_store[0]["loss"]/games1*100:.2f}',
-                         f'draws:{stat_store[0]["draw"]/games1*100:.2f}'],
-                        colors)
-        self.draw_gauge(axes[0][1],stat_store[1],
-                        [f'wins:{stat_store[1]["win"]/games2*100:.2f}',
-                         f'loss:{stat_store[1]["loss"]/games2*100:.2f}',
-                         f'draws:{stat_store[1]["draw"]/games2*100:.2f}'],
-                        colors)
-        labels = [i[0] for i in wingames][::-1]
-        values = [i[1] for i in wingames][::-1]
-        axes[1][0].bar(labels, values, color="#B74005", width=0.4)
-        axes[1][0].set_facecolor("#0d1b2a")
-        axes[1][0].set_xlabel("Players", color="white", fontsize=10)
-        axes[1][0].set_ylabel("Wins",    color="white", fontsize=10)
-        axes[1][0].set_title("Top 5 Players by Wins", color="white", fontsize=11)
-        axes[1][0].tick_params(labelcolor="white")
-        for spine in axes[1][0].spines.values():
-            spine.set_visible(False)
-        wedges=axes[1][1].pie(game_counts,colors=["#4fc3f7", "#ce93d8", "#80cbc4"],autopct=lambda pct: f'{pct:.1f}%' if pct > 0 else '')[0]
-        axes[1][1].legend(
-            wedges,
-            ["tictactoe", "othello", "connect4"],
-            loc="center left",
-            bbox_to_anchor=(1, 0.5),
-            fontsize=8
+                    game_counts[2] += 1
+
+        wingames = sorted(win_players.items(), key=lambda x: x[1], reverse=True)[:5]
+
+        BG       = "#1a0f08"
+        PANEL    = "#1e1208"
+        COPPER   = "#E8A44A"
+        RUST     = "#C0523A"
+        TEAL     = "#6B9E7A"
+        MUTED    = "#8B6040"
+        TEXT     = "#D4A868"
+        GRID_COL = "#2a1c0e"
+
+        gauge_colors = [COPPER, RUST, TEAL]
+
+        fig = plt.figure(figsize=(11, 7), facecolor=BG)
+        fig.subplots_adjust(left=0.07, right=0.93, top=0.88, bottom=0.1,
+                            hspace=0.5, wspace=0.4)
+
+        # ── Main title ──────────────────────────────────────────────
+        fig.text(0.5, 0.95, "GAME  POINT  —  STATISTICS",
+                ha="center", va="top",
+                fontsize=15, fontweight="bold",
+                color=COPPER, fontfamily="monospace"
+                )
+        fig.text(0.5, 0.915, "─" * 72,
+                ha="center", va="top",
+                fontsize=7, color=MUTED, fontfamily="monospace")
+
+        # ── Gauge 1 ──────────────────────────────────────────────────
+        ax1 = fig.add_subplot(2, 3, 1)
+        ax1.set_facecolor(PANEL)
+        g1 = stat_store[0]
+        self.draw_gauge(
+            ax1, g1,
+            [f"wins   {g1['win']/g1['games']*100:.1f}%",
+            f"losses {g1['loss']/g1['games']*100:.1f}%",
+            f"draws  {g1['draw']/g1['games']*100:.1f}%"],
+            gauge_colors,
+            title=self.player1,
         )
+
+        # ── Gauge 2 ──────────────────────────────────────────────────
+        ax2 = fig.add_subplot(2, 3, 2)
+        ax2.set_facecolor(PANEL)
+        g2 = stat_store[1]
+        self.draw_gauge(
+            ax2, g2,
+            [f"wins   {g2['win']/g2['games']*100:.1f}%",
+            f"losses {g2['loss']/g2['games']*100:.1f}%",
+            f"draws  {g2['draw']/g2['games']*100:.1f}%"],
+            gauge_colors,
+            title=self.player2,
+        )
+
+        # ── Game-type donut (top-right) ───────────────────────────────
+        ax3 = fig.add_subplot(2, 3, 3)
+        ax3.set_facecolor(PANEL)
+        donut_colors = [COPPER, RUST, TEAL]
+        game_labels  = ["TicTacToe", "Othello", "Connect 4"]
+        wedges, texts, autotexts = ax3.pie(
+            game_counts,
+            colors=donut_colors,
+            autopct=lambda p: f"{p:.1f}%" if p > 0 else "",
+            pctdistance=0.75,
+            wedgeprops=dict(width=0.45, edgecolor="#1a0f08", linewidth=1.2),
+            startangle=90,
+        )
+        for at in autotexts:
+            at.set_fontsize(8)
+            at.set_color("#1a0f08")
+            at.set_fontweight("bold")
+        ax3.legend(
+            wedges, game_labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, -0.28),
+            ncol=1,
+            fontsize=8,
+            frameon=False,
+            labelcolor=TEXT,
+        )
+        ax3.set_title("Games Played", color=TEXT, fontsize=10,
+                    fontfamily="monospace", pad=8)
+
+        # ── Bar chart (bottom, full width) ───────────────────────────
+        ax4 = fig.add_subplot(2, 1, 2)
+        ax4.set_facecolor(PANEL)
+
+        labels = [i[0] for i in wingames][::-1]
+        bar_values = [i[1] for i in wingames][::-1]
+
+        bar_colors = [COPPER, "#C4883A", RUST, "#9B3A28", TEAL][:len(labels)]
+        bars = ax4.bar(labels, bar_values, color=bar_colors,
+                    width=0.45, zorder=3,
+                    edgecolor="#1a0f08", linewidth=0.8)
+
+        # Value labels on top of bars
+        for bar, val in zip(bars, bar_values):
+            ax4.text(bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + max(bar_values) * 0.02,
+                    str(val),
+                    ha="center", va="bottom",
+                    fontsize=9, color=TEXT,
+                    fontfamily="monospace", fontweight="bold")
+
+        # Horizontal grid lines only
+        ax4.yaxis.grid(True, color=GRID_COL, linewidth=0.8, zorder=0)
+        ax4.set_axisbelow(True)
+        ax4.set_facecolor(PANEL)
+        ax4.set_xlabel("Players", color=MUTED, fontsize=10, fontfamily="monospace")
+        ax4.set_ylabel("Wins",    color=MUTED, fontsize=10, fontfamily="monospace")
+        ax4.set_title("Top 5 Players by Wins",
+                    color=TEXT, fontsize=11,
+                    fontfamily="monospace", pad=10)
+        ax4.tick_params(labelcolor=TEXT, labelsize=9)
+        ax4.spines[:].set_visible(False)
+        ax4.set_ylim(0, max(bar_values) * 1.18)
+
+        # Thin copper bottom border
+        ax4.spines["bottom"].set_visible(True)
+        ax4.spines["bottom"].set_color(MUTED)
+        ax4.spines["bottom"].set_linewidth(0.8)
+
         return False
 
     def on_close(self, event):
@@ -738,12 +831,39 @@ class Board:
             pygame.quit()
             sys.exit()
         return False
-    def options(self,width,height,pos,d,event):
-        if self.options==None:
-            self.options=Button("OPTIONS",pos[0],pos[1],width,height,pygame.font.SysFont("Consolas",0.5*width,bold=True))
+    def option_screen(self,width,height,pos,event,style=None):
+        w,h=self.screen.get_size()
+        self.options.assign("OPTIONS",pos[0],pos[1],width,height,pygame.font.SysFont("Consolas",int(0.1*width),bold=True),style=style)
         self.options.draw(self.screen)
-        if self.options.handle_event(event):
-            pass
+        #print(self.showing_options)
+        if self.options.handle_event(event) or self.showing_options:
+            col=self._C_ACCENT if style==None else style[3]
+            text=[(pygame.font.SysFont("Consolas",int(w*0.0319), bold=True),"GAME OPTIONS",col,0.2415*w,0.1146*h,True,0.00275*w,50)]
+            bars=[(0.2415*w,0.1146*h+text[0][0].get_height()*1.2,0.484*w)]
+            self.fancy_screen(text,[],bars,style)
+            font=pygame.font.SysFont("Consolas",int(0.14*width),bold=True)
+            self.resign1.assign("PLAYER 1 RESIGNS",int(0.2845*w),int(0.284*h),int(0.338*w),int(0.123*h),font,-int(0.05*w),style=style)
+            self.resign2.assign("PLAYER 2 RESIGNS",int(0.2845*w),int(0.437*h),int(0.338*w),int(0.123*h),font,-int(0.05*w),style=style)
+            self.quit.assign("QUIT GAME",int(0.2845*w),int(0.59*h),int(0.338*w),int(0.123*h),font,-int(0.08375*w),style=style)
+            self.resume.assign("RESUME",int(0.2845*w),int(0.743*h),int(0.338*w),int(0.123*h),font,-int(0.09625*w),style=style)
+            self.resign1.draw(self.screen)
+            self.resign2.draw(self.screen)
+            self.quit.draw(self.screen)
+            self.resume.draw(self.screen)
+            self.showing_options=True
+            if self.resign1.handle_event(event):
+                self.showing_options=False
+                return 1
+            if self.resign2.handle_event(event):
+                self.showing_options=False
+                return 2
+            if self.quit.handle_event(event):
+                self.showing_options=False
+                return 3
+            if self.resume.handle_event(event):
+                self.showing_options=False
+            return True
+        return False
     def play(self):
         pass
 
@@ -826,7 +946,11 @@ if __name__=="__main__":
                     results=False
                     stats=True
             elif stats:
-                if board.show_leaderboard(imp):
+                if o==0:
+                    style=None
+                elif o==2:
+                    style=con.style
+                if board.show_leaderboard(imp,style):
                     stats=False
                     charts=True
             elif charts:
@@ -860,7 +984,17 @@ if __name__=="__main__":
                     obj=con
                     stri="Connect 4"
                 changed=obj.play(obj.turn,imp)
-                winner=obj.win_check(obj.turn)
+                if obj.p1resign:
+                    winner=2
+                    obj.p1resign=False
+                elif obj.p2resign:
+                    winner=1
+                    obj.p2resign=False
+                elif obj.quitted:
+                    is_menu=True
+                    obj.quitted=False
+                else:
+                    winner=obj.win_check(obj.turn)
                 obj.turn_change(changed)
                 if winner!="none":
                     final_result=winner

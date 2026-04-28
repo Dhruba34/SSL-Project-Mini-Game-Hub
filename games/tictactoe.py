@@ -91,6 +91,7 @@ class draw:
 
 class Tictactoe(Board):
     def __init__(self,width,height,screen,player1,player2):
+        super().__init__(player1, player2, width, height, stats=None, screen=screen)
         self.player1,self.player2=player1,player2
         self.playing_board=draw(width,height,screen,self.player1,self.player2)
         self.board=np.zeros((10,10))
@@ -102,6 +103,9 @@ class Tictactoe(Board):
         self.highlight_time=0.3
         self.winner=0
         self.match=None
+        self.p1resign=False
+        self.p2resign=False
+        self.quitted=False
     def maximize(self,width,height,screen):
         t0=self.playing_board.t0
         self.playing_board=draw(width,height,screen,self.player1,self.player2)
@@ -111,7 +115,19 @@ class Tictactoe(Board):
     def reset(self):
         self.board=np.zeros((10,10))
     def play(self, turn, event=None):
+        w,h=self.screen.get_width(),self.screen.get_height()
         self.playing_board.draw_board(self.board)  # always redraw full board
+        temp=super().option_screen(0.13*w,0.0827*h,(0.0156*w,0.893*h),event)
+        if type(temp)!=bool:
+            if temp==1:
+                self.p1resign=True
+            elif temp==2:
+                self.p2resign=True
+            else:
+                self.quitted=True
+            return False
+        if temp:
+            return False
 
         if event and event.type == pygame.MOUSEBUTTONDOWN:
             mx, my = event.pos
@@ -132,10 +148,13 @@ class Tictactoe(Board):
     def win_check(self,turn):
         if self.animate==False and self.prev_animate==False:
             if self.check_hori_vert(turn):
+                self.t0=None
                 self.winner=turn
             if self.check_diagonal(turn):
+                self.t0=None
                 self.winner=turn
             if self.check_draw():
+                self.t0=None
                 return 0
         elif self.animate==True:
             self.highlight()
