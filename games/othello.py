@@ -241,14 +241,14 @@ class Othello(Board):
 			x=self.num_ax_width+i*self.min_dim/self.boardsize+(i+1)*self.sqpad
 			#horizontal numbering
 			num=self.bold.render(f'{i}', True, (255,193,7))
-			self.screen.blit(num, (x+self.sqsize//2-num.width//2, 0.20*self.height))
+			self.screen.blit(num, (x+self.sqsize//2-num.get_width()//2, 0.20*self.height))
 			for j in range (self.boardsize):
 				y=self.height*0.24+j*self.min_dim/self.boardsize+(j+1)*self.sqpad
 				if (i==0):
 					#vertical numbering
 					num=self.bold.render(f'{j}', True, (255,193,7))
-					off=(self.num_ax_width-num.width)//2 #not checking for this becoming -ve to prevent bleeding of text into board
-					self.screen.blit(num, (off, y+self.sqsize//2-num.height//2))
+					off=(self.num_ax_width-num.get_width())//2 #not checking for this becoming -ve to prevent bleeding of text into board
+					self.screen.blit(num, (off, y+self.sqsize//2-num.get_height()//2))
 				rect=pg.Rect(x, y, self.sqsize, self.sqsize)
 				sq_util=pg.transform.scale(self.sqimg, (rect.width, rect.height))
 				self.screen.blit(sq_util, rect)
@@ -267,7 +267,7 @@ class Othello(Board):
 		pg.draw.rect(self.screen, (255, 193, 7), rect, int(self.abs_scale), border_radius=int(6*self.abs_scale))
 		log_heading_font=pg.font.SysFont("georgia", int(self.log_heading_height*0.46), bold=True)
 		log_header=log_heading_font.render("Move Log", True, (255, 193, 7))
-		self.screen.blit(log_header, (self.log_x+(self.log_width-log_header.width)/2, 0.17*self.height+(self.log_heading_height-log_header.height)/2))
+		self.screen.blit(log_header, (self.log_x+(self.log_width-log_header.get_width())/2, 0.17*self.height+(self.log_heading_height-log_header.get_height())/2))
 
 	def draw_time(self):
 		rect=pg.Rect(self.log_x, 0.91*self.height, self.log_width, self.time_height)
@@ -277,7 +277,7 @@ class Othello(Board):
 		elapsed=time.time()-self.start_time
 		formatted=time.strftime("%H:%M:%S", time.gmtime(elapsed))
 		samay=t_font.render(formatted,True,(255,193,7))
-		self.screen.blit(samay, (self.log_x+(self.log_width-samay.width)/2, 0.91*self.height+(self.time_height-samay.height)/2+2*self.abs_scale))
+		self.screen.blit(samay, (self.log_x+(self.log_width-samay.get_width())/2, 0.91*self.height+(self.time_height-samay.get_height())/2+2*self.abs_scale))
 
 	def draw_board(self):
 		self.draw_game_name()
