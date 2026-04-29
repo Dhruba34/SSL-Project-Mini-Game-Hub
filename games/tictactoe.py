@@ -19,8 +19,28 @@ class draw:
         self.color1=(0, 229, 255)
         self.color2=(224, 64, 251)
         self.player1,self.player2=player1,player2
+        self.player1cut,self.player2cut=self.player1,self.player2
         self.t0=None
         self.grid=pygame.Rect((width-self.width)/2+0.007*self.width,(height-self.height)/2+0.006*self.width,self.width,self.height)
+
+    def crop_name(self, font, width, pnum, color):
+        pnum=pnum-1 #converting to index
+        name=[self.player1, self.player2][pnum]
+        if font.size(name+'i')[0]>width: #the 'i' is to ensure text doesn't go too close to edge
+            name_cut=[self.player1cut, self.player2cut][pnum]
+            if font.size(name_cut+'i')[0]>width or font.size(name_cut+'i')[0]<width:
+                lo, hi = 0, len(name) - 2  # -2 reserves room for ".."
+                while lo < hi:
+                    mid = (lo + hi + 1) // 2
+                    if font.size(name[:mid] + "..")[0] <= width:
+                        lo = mid
+                    else:
+                        hi = mid - 1
+                name=name[:lo-1]+'...'
+                if pnum==0: self.player1cut=name
+                else: self.player2cut=name
+        return font.render(f'{name}', True, color)
+
     def draw_board(self,info):
         pygame.draw.rect(self.screen,self.color,self.grid,border_radius=10)
         mx, my = pygame.mouse.get_pos()
@@ -34,11 +54,12 @@ class draw:
         font=pygame.font.SysFont("Consolas",int(20/800*w),bold=True)
         txt=font.render("PLAYER 1",True,self.color1)
         self.screen.blit(txt,pygame.Rect(0.1269*w,0.141*h,0,0))
-        txt=font.render(self.player1,True,self.color1)
+        #txt=font.render(self.player1,True,self.color1)
+        txt=self.crop_name(font, 0.1269*w, 1, self.color1)
         self.screen.blit(txt,pygame.Rect(0.1269*w,0.213*h,0,0))
         txt=font.render("PLAYER 2",True,self.color2)
         self.screen.blit(txt,pygame.Rect(0.8724*w-txt.get_width(),0.141*h,0,0))
-        txt=font.render(self.player2,True,self.color2)
+        txt=self.crop_name(font, 0.1269*w, 2, self.color2)
         self.screen.blit(txt,pygame.Rect(0.8724*w-txt.get_width(),0.213*h,0,0))
         if self.t0==None:
             self.t0=time.time()

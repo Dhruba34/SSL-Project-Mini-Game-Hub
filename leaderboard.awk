@@ -49,7 +49,7 @@ BEGIN {
 }
 
 END {
-	n=split(games, arr, " ") #https://www.geeksforgeeks.org/linux-unix/built-functions-awk
+	n=split(games, arr, ",") #https://www.geeksforgeeks.org/linux-unix/built-functions-awk
 	for (x=1; x<=n; x++){
 		i=arr[x]
 		if (i in l){

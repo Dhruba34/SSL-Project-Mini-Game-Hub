@@ -49,7 +49,7 @@ println
                                                                                                    
 #--------------------------------------------------------------------------------
 
-a=("connect_4" "Othello" "TicTacToe")
+a="Connect 4,Othello,TicTacToe"
 
 file=$(gawk -v games="${a[*]}" -f leaderboard.awk  history.csv)
 

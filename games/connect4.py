@@ -25,10 +25,31 @@ class draw:
         self.player2=pygame.transform.scale(pygame.image.load("./pictures/player2.png"),(int(0.1165*width,),int(0.0522*height)))
         self.name1=name1
         self.name2=name2
+        self.name1cut,self.name2cut=self.name1,self.name2
         self.pointer_size=0.01*width
         self.t0=0
         self.pointer_animate=False
         self.pointer_duration=0.2
+
+    def crop_name(self, font, width, pnum, color):
+        width=width*0.8
+        pnum=pnum-1 #converting to index
+        name=[self.name1, self.name2][pnum]
+        if font.size(name+'i')[0]>width: #the 'i' is to ensure text doesn't go too close to edge
+            name_cut=[self.name1cut, self.name2cut][pnum]
+            if font.size(name_cut+'i')[0]>width or font.size(name_cut+'i')[0]<width:
+                lo, hi = 0, len(name) - 2  # -2 reserves room for ".."
+                while lo < hi:
+                    mid = (lo + hi + 1) // 2
+                    if font.size(name[:mid] + "..")[0] <= width:
+                        lo = mid
+                    else:
+                        hi = mid - 1
+                name=name[:lo-1]+'...'
+                if pnum==0: self.name1cut=name
+                else: self.name2cut=name
+        return font.render(f'{name}', True, color)
+
 
     def draw_board(self, info,event):
         for i in range(7):
@@ -45,8 +66,8 @@ class draw:
         self.screen.blit(self.player1,(int(0.06*self.width),int(0.1203*self.height)))
         self.screen.blit(self.player2,(int(0.8264*self.width),int(0.1203*self.height)))
         font=pygame.font.SysFont("Consolas",int(min(35/1919*self.width,35/982*self.height)),bold=True)
-        txt1=font.render(self.name1,True,(94,46,6))
-        txt2=font.render(self.name2,True,(94,46,6))
+        txt1=self.crop_name(font, self.player1.get_width(), 1, (94,46,6))
+        txt2=self.crop_name(font, self.player2.get_width(), 2, (94,46,6))
         self.screen.blit(txt1,(int(0.0743*self.width),int(0.3867*self.height)))
         self.screen.blit(txt2,(int(0.932267*self.width)-txt2.get_width(),int(0.3867*self.height)))
         tx,ty=pygame.mouse.get_pos()
