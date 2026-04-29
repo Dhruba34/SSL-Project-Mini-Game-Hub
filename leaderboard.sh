@@ -13,10 +13,41 @@
 #	tot_played, tot_played_rev --> 7 or -7
 # Following priority is to be interpretted as grouping constraints: ($7)
 #	game, game_rev;
-#
-# TODO learn about the column utility
 
-#grouping: pass an array to awk for game order
+#--------------------------------------------------------------------------------
+# Color definitions
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+BLINK_GREEN='\033[1;5;4;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+CYAN='\033[1;36m'
+GOLD='\033[1;38;2;255;193;7m'
+RESET='\033[1;0m'
+#--------------------------------------------------------------------------------
+#Assisting function(s)
+PFX="${GOLD}\t||\t${RESET}"
+PFXTITLE="${GOLD}\t||\t"
+println() { echo -e "${PFX}$@"; }
+printtitle() { echo -e "${PFXTITLE}$@"; }
+#--------------------------------------------------------------------------------
+# Terminal decorprint_leaderboard_title(){
+
+clear
+printtitle 
+printtitle ' _        _______  _______  ______   _______  _______  ______   _______  _______  _______  ______'
+printtitle '( \      (  ____ \(  ___  )(  __  \ (  ____ \(  ____ )(  ___ \ (  ___  )(  ___  )(  ____ )(  __  \' 
+printtitle '| (      | (    \/| (   ) || (  \  )| (    \/| (    )|| (   ) )| (   ) || (   ) || (    )|| (  \  )'
+printtitle '| |      | (__    | (___) || |   ) || (__    | (____)|| (__/ / | |   | || (___) || (____)|| |   ) |'
+printtitle '| |      |  __)   |  ___  || |   | ||  __)   |     __)|  __ (  | |   | ||  ___  ||     __)| |   | |'
+printtitle '| |      | (      | (   ) || |   ) || (      | (\ (   | (  \ \ | |   | || (   ) || (\ (   | |   ) |'
+printtitle '| (____/\| (____/\| )   ( || (__/  )| (____/\| ) \ \__| )___) )| (___) || )   ( || ) \ \__| (__/  )'
+printtitle '(_______/(_______/|/     \|(______/ (_______/|/   \__/|/ \___/ (_______)|/     \||/   \__/(______/ '
+println
+println "                              ${BLINK_GREEN}TriGrid Engine • Multi-Game Leaderboard${RESET}"
+println
+                                                                                                   
+#--------------------------------------------------------------------------------
 
 a=("connect_4" "Othello" "TicTacToe")
 
@@ -26,5 +57,6 @@ file=$(gawk -v games="${a[*]}" -f leaderboard.awk  history.csv)
 
 cm=$(echo -e $7"\n"$1"\n"$2"\n"$3"\n"$4"\n"$5"\n"$6 | awk '{ if ($1 > 0){printf "-k %d,%dr ",$1,$1} else if ($1<0) {printf "-k %d,%d ",-$1,-$1}}')
 
-sort -t "," ${cm} <<< "$file" | column -s, -t #echo not needed here.
-
+echo -en ${GOLD}
+sort -t "," ${cm} <<< "$file" | column -s, -o " || " -t | sed 's/^/\t||\t/' #echo not needed here.
+echo -en ${RESET}

@@ -2,7 +2,7 @@
 from sys import path as sys_path
 from os import path as os_path
 sys_path.append(os_path.join(os_path.dirname(__file__),'..')) #adds parent dir of file's dir to list of dirs searched by python for importing
-from game import Board, Button as ogButton
+from game import Board, Button as ogButton #og is short for original
 import pygame as pg
 import numpy as np
 import time
@@ -14,7 +14,7 @@ class comp: #to match with game.py; comp is short for comply/compliance
 		self.screen=screen
 
 class Button(ogButton): #Different class because different aesthetic
-	def __init__(self, text, x, y, w, h, font):
+	def __init__(self, text, x, y, w, h, font): #TODO: copy comments from game.py
 		super().__init__(text, x, y, w, h, font) #ogButton init stuff
 		self.bg=(76, 42, 21)
 		self.accent = (212, 175, 55)
@@ -39,11 +39,11 @@ class Button(ogButton): #Different class because different aesthetic
 class Othello(Board):
 	def __init__(self, width, height, screen, player1, player2): #initialise the othello game object
 
-		self.width=width
-		self.height=height
-		self.screen=screen
-		self.scale=1
-		self.abs_scale=1
+		super().__init__(player1, player2, width, height, stats=None, screen=screen) #initialised as per the parent class
+
+		#scaling
+		self.scale=1 #measures a ratio for each resize; see maximise function for the ratio
+		self.abs_scale=1 #measures the same ratio as above, but from current size to initial size; see maximise function
 
 		#token images:
 		self.p2tokimg=pg.image.load("./pictures/white_token.jpg")
@@ -55,36 +55,34 @@ class Othello(Board):
 		self.uname_height=0.10*self.height
 		#self.num_ax_height=0.0x*self.height #numbering of columns
 
-		#stuff at left of board
-		self.num_ax_width=0.025*self.width
-		self.board_log_gap=0.025*self.width
-		self.log_right_pad=0.025*self.width
+		#stuff along vertical edge of board
+		self.num_ax_width=0.025*self.width #numbering 0 to self.boardsize (defined later in this init) done in this place
+		self.board_log_gap=0.025*self.width #gap between board and log screen
+		self.log_right_pad=0.025*self.width #gap between log screen and right edge of pygame screen
 
 		#initialising board
-		self.player1=player1
-		self.player1cut=self.player1 #incase uname too long
-		self.player2=player2
+		self.player1cut=self.player1 #in case uname too long, a shortened username (PS: self.player1 is username of player1)
 		self.player2cut=self.player2
-		self.boardsize=8
-		self.board=np.zeros((self.boardsize, self.boardsize), dtype=int)
-		self.board[self.boardsize//2-1][self.boardsize//2-1]=self.board[self.boardsize//2][self.boardsize//2]=2
-		self.board[self.boardsize//2-1][self.boardsize//2]=self.board[self.boardsize//2][self.boardsize//2-1]=1
-		self.sqimg=pg.image.load("./pictures/square.png")
+		self.boardsize=8 #number of rows (equivalently number of columns)
+		self.board=np.zeros((self.boardsize, self.boardsize), dtype=int) #0 for no token, 1 for token of player1, 2 for token of player2
+		mid=self.boardsize//2
+		self.board[mid-1:mid+1, mid-1:mid+1]=np.array([[2, 1], [1, 2]]) #initial token positions
+		self.sqimg=pg.image.load("./pictures/square.png") #design of each square of the board
 		self.min_dim=min(self.width*0.6, self.height*0.74) #Right part is for logs
-		self.sqpad=0.015*self.min_dim
-		self.bottompad=0.04*self.min_dim
-		self.min_dim-=(self.boardsize-1)*self.sqpad #gap between squares in board
+		self.sqpad=0.015*self.min_dim #gap between any two adjacent squares of the board
+		self.bottompad=0.04*self.min_dim #gap between bottom of board and bottom of pygame screen
+		self.min_dim-=(self.boardsize-1)*self.sqpad #adjusting for the gap between squares in board
 		self.min_dim-=self.bottompad #removing padding from our calculation for board sizes
-		self.sqsize=self.min_dim/self.boardsize
+		self.sqsize=self.min_dim/self.boardsize #size of each square in the board
 
 		#Initialise turn number and player turn
-		self.turn_num=1
-		self.turn=1 #player turn
+		self.turn_num=1 #turn number
+		self.turn=1 # k where it is player k's turn
 
 		#important param for win_check: check that no turns are left for each player.
-		self.sk=[0,0]
+		self.sk=[0,0] #to check if a player's turn was just skipped; [1,1] signifies no more possible moves in game and hence game over.
 		self.max_tok=int(self.boardsize*self.boardsize/2) #tot. number of tokens available per player
-		self.p1used=0
+		self.p1used=0 #number of tokens used by player1
 		self.p2used=0
 
 		#common
@@ -98,36 +96,56 @@ class Othello(Board):
 		self.log_heading_height=0.09*self.height
 
 		#logs surface object
-		self.log_x=self.num_ax_width+self.min_dim+self.board_log_gap+(self.boardsize+1)*self.sqpad
+		self.log_x=self.num_ax_width+self.min_dim+self.board_log_gap+(self.boardsize+1)*self.sqpad #x coord of top left point of log screen
 		self.log_width=self.width-(self.log_right_pad+self.log_x)
-		self.log_y=self.height*0.27
+		self.log_y=self.height*0.27 #y coord of top left point of log screen
 		self.log_height=self.height*0.63
 		#log_height will be used while blitting
-		self.log_screen=pg.Surface((self.log_width, 1000*self.abs_scale), pg.SRCALPHA)
+		self.log_screen=pg.Surface((self.log_width, 1000*self.abs_scale), pg.SRCALPHA) #SRCALPHA allows for transparency
 		#info on this screen will be on a large area to allow scrolling
 		#NOTE: not all screens are visible. Visible screens need to be set using pg.display.set_mode(...)
-		self.logcol=(50, 28, 10, 180)
-		self.log=[]
-		self.scroll=0
-		self.prev_scroll=0
-		self.scroll_sensitivity=100
+		self.logcol=(50, 28, 10, 180) #log colour
+		self.log=[] #stores log notifications
+		self.scroll=0 #scrolling in log
+		self.prev_scroll=0 #useful for when restoring log when help is shown
+		self.scroll_sensitivity=100 #scales the scrolling, i.e., makes scrolling faster
 
-		#stuff below logs
+		#stuff below logs (for showing amount of time the game ahs been running)
 		self.start_time=time.time()
 		self.time_height=0.08*self.height
 
 		#to match with game.py
 		self.playing_board=comp(self.min_dim, self.min_dim, self.screen)
 
-		#TODO: Make button for settings, handle clicking in play(), drawing in draw_board and maximize.
-		self.settings=Button("Settings", self.log_x, 0.1*self.height, self.log_width*0.475, self.button_height, self.normal)
-		self.shown_settings=0
+		#Options
+		self.options=Button("",0,0,0,0,None) #override the init from super
+		self.resign1=Button("",0,0,0,0,None) #override the init from super
+		self.resign2=Button("",0,0,0,0,None) #override the init from super
+		self.quit=Button("",0,0,0,0,None) #override the init from super
+		self.resume=Button("",0,0,0,0,None) #override the init from super
+		self.p1resign=False
+		self.p2resign=False
+		self.quitted=False
+		self.style=((212, 175, 55),(76, 42, 21),(160, 120, 45),(232,164,74),(139,94,42),(30,18,8)) #TODO copy comment from game.py
 
 		#Button for help, handled clicking in play(), drawing in draw_board and maximize.
 		self.help=Button("Help", self.log_x+self.log_width*0.525, 0.1*self.height, self.log_width*0.475, self.button_height, self.normal)
-		self.shown_help=0
+		self.shown_help=0 #used to remember the state of help being shown:
+		#					   0 -> help not being shown
+		#					   1 -> help is being shown
+		#					   2 -> transition from help being shown to not being shown
 
-	#TODO Settings for board colours, log colours & player token colours
+		#animation helper(s)
+		self.anim_start_t=None
+		self.stepd={"R":(1,0), "L":(-1,0), "T":(0,-1), "B":(0,1), "LT":(-1,-1), "RB":(1,1), "LB":(-1,1), "RT":(1,-1)}
+		self.escaped=None #managed in play() #the first token to be (potentially) flipped in each direction
+		self.target=None #managed in play() #the other token of the same kind as currently placed token in each direction; everything between the corresponding tokens of self.escaped (inclusive) and self.target (exclusive) is to be flipped
+		self.total_frames_per_flip=18
+		self.half_cycle_frames=self.total_frames_per_flip//2
+		self.delay_frames=self.total_frames_per_flip//6
+		self.total_anim_frames=self.total_frames_per_flip+self.delay_frames
+
+	#TODO Options for board colours, log colours & player token colours
 
 	def draw_game_name(self):
 		#bkgrnd
@@ -139,7 +157,7 @@ class Othello(Board):
 		symbol=symbol_font.render("✦", True, (255,193,7))
 		self.screen.blit(symbol, (4*self.abs_scale, (self.game_name_height-symbol.get_height())//2))
 
-		#Player k's turn
+		#Display "Player k's turn"
 		text_font = pg.font.SysFont("consolas", int(self.game_name_height * 0.28), bold=True)
 		text_content=f"Player {'1' if self.turn==1 else '2'}'s Turn"
 		text=text_font.render(text_content, True, (255,193,7))
@@ -158,11 +176,11 @@ class Othello(Board):
 		self.screen.blit(head, ((cx-head.get_width())//2,(self.game_name_height-head.get_height())//2))
 
 	def draw_player_names(self):
-		p_font=pg.font.SysFont("georgia", int(self.uname_height*0.34), bold=True)
-		sub_font = pg.font.SysFont("consolas", int(self.uname_height*0.24))
+		p_font=pg.font.SysFont("georgia", int(self.uname_height*0.34), bold=True) #font for player name
+		sub_font = pg.font.SysFont("consolas", int(self.uname_height*0.24)) #font for number of tokens remaining
 
 		for pnum in range(2):
-			#namecardbkg
+			#namecard background
 			x=self.num_ax_width+pnum*((self.min_dim+(self.boardsize+1)*self.sqpad)/2+0.005*self.width)
 			wid=(self.min_dim+(self.boardsize+1)*self.sqpad)/2-0.005*self.width
 			if pnum+1==self.turn: bkg, bordercol=(90, 55, 22),(255,193,7)
@@ -170,7 +188,7 @@ class Othello(Board):
 			pg.draw.rect(self.screen, bkg, pg.Rect(x, 0.1*self.height, wid, self.uname_height), border_radius=int(7*self.abs_scale))
 			pg.draw.rect(self.screen, bordercol, pg.Rect(x, 0.1*self.height, wid, self.uname_height), int(2*self.abs_scale), border_radius=int(7*self.abs_scale))
 
-			#tokdenote
+			#show the token of each player
 			d_tok=self.uname_height*0.56
 			x_tok_rect=x+self.uname_height*0.15
 			y_tok_rect=0.1*self.height+(self.uname_height-d_tok)/2
@@ -202,12 +220,13 @@ class Othello(Board):
 			show_pname=p_font.render(f'{name}', True, (255,193,0))
 			self.screen.blit(show_pname, (x_txt, 0.1*self.height+self.uname_height*0.08))
 
-			#num_tok_remain
+			#number of tokens remaining for each player
 			used=[self.p1used, self.p2used][pnum]
 			show_sub=sub_font.render(f'{self.max_tok-used} tokens remain', True, (255,193,0))
 			self.screen.blit(show_sub, (x_txt, 0.1*self.height+self.uname_height*0.54))
 
 	def draw_board_and_num(self):
+		#here bks means background square color
 		bks1=(40, 22, 8)
 		bks2=(80, 50, 20)
 
@@ -242,13 +261,6 @@ class Othello(Board):
 					p2_utiltok=pg.transform.scale(self.p2tokimg, (rect.width, rect.width))
 					self.screen.blit(p2_utiltok, rect)
 
-	def draw_buttons(self):
-		#for settings:
-		self.settings.draw(self.screen)
-
-		#for help:
-		self.help.draw(self.screen)
-
 	def draw_game_log_heading(self):
 		rect=pg.Rect(self.log_x, 0.17*self.height, self.log_width, self.log_heading_height)
 		pg.draw.rect(self.screen, (60, 35, 12), rect, border_radius=int(6*self.abs_scale))
@@ -271,11 +283,11 @@ class Othello(Board):
 		self.draw_game_name()
 		self.draw_player_names()
 		self.draw_board_and_num()
-		self.draw_buttons()
+		self.help.draw(self.screen)
 		self.draw_game_log_heading()
 		self.draw_time()
 
-	def maximize(self,width,height,screen):
+	def maximize(self,width,height,screen): #general resizing also handled by this
 		#fonts
 		self.scale=min(width/self.width, height/self.height)
 		self.abs_scale*=self.scale
@@ -299,11 +311,11 @@ class Othello(Board):
 		self.log_right_pad=0.025*self.width
 
 		#board
-		self.min_dim=min(self.width*0.6, self.height*0.74) #Right part is for logs
+		self.min_dim=min(self.width*0.6, self.height*0.74)
 		self.sqpad=0.015*self.min_dim
 		self.bottompad=0.04*self.min_dim
-		self.min_dim-=(self.boardsize-1)*self.sqpad #gap between squares in board
-		self.min_dim-=self.bottompad #removing padding from our calculation for board sizes
+		self.min_dim-=(self.boardsize-1)*self.sqpad
+		self.min_dim-=self.bottompad
 		self.sqsize=self.min_dim/self.boardsize
 
 		#stuff above logs
@@ -318,23 +330,13 @@ class Othello(Board):
 		self.log_height=self.height*0.63
 		self.scroll*=self.scale
 		self.prev_scroll*=self.scale
-		#log_height will be used while blitting
 		self.log_screen=pg.Surface((self.log_width, 1000*self.abs_scale), pg.SRCALPHA)
 
 		#stuff below logs
 		self.time_height=0.08*self.height
 
-		#for settings
-		self.settings=Button("Settings", self.log_x, 0.1*self.height, self.log_width*0.475, self.button_height, self.normal)
-
 		#for help
 		self.help=Button("Help", self.log_x+self.log_width*0.525, 0.1*self.height, self.log_width*0.475, self.button_height, self.normal)
-
-#		self.draw_board()
-#		self.to_log()
-#		self.display_log()
-
-	#TODO button for displaying rules.
 
 	def display_help(self):
 		self.log_screen.fill(self.logcol)
@@ -357,10 +359,10 @@ class Othello(Board):
 		for msg_obj in self.log:
 			#msg_obj[1] is a tuple (string, color)
 			msg_head="Turn "+str(msg_obj[0][0])+':'
-			msg=" Player "+str(msg_obj[0][1])+": "+str(msg_obj[1][0])
+			msg=" P"+str(msg_obj[0][1])+": "+str(msg_obj[1][0])
 			head_surf=self.bold.render(msg_head, True, msg_obj[1][1], wraplength=int(self.log_width)).convert_alpha()
 			main_surf=self.normal.render(msg, True, msg_obj[1][1], wraplength=int(self.log_width)).convert_alpha()
-			#https://stackoverflow.com/questions/42014195/rendering-text-with-multiple-lines-in-pygame (the answer with 3 votes)
+			#https://stackoverflow.com/questions/42014195/rendering-text-with-multiple-lines-in-pygame (the answer by Rabbid76)
 			self.log_screen.blit(head_surf, (10, y))
 			y+=head_surf.get_height()
 			self.log_screen.blit(main_surf, (10,y))
@@ -382,74 +384,76 @@ class Othello(Board):
 
 	def validate_pos(self, i, j): #returns dictionary of 8 positions: in each direction, the nearest token of same colour which is not (i,j). If no such token, that position is set to (i,j)
 		dest_pos=dict()
-		encountered=0
-		for x in range (i-1, -1, -1): #3 dirns
-			#left horizontal:
-			if self.board[x][j]==0: break
-			elif self.board[x][j]==self.turn:
-				if encountered: dest_pos["L"]=(x,j)
-				break
-			else: encountered=1
-		encountered=0
-		for x in range (i-1, -1, -1): #3 dirns
-			#LT: remember, top has lower y, and x<i and x decreases with steps in loop.
-			if j+x-i>=0:
-				if self.board[x][j+x-i]==0: break
-				elif self.board[x][j+x-i]==self.turn:
-					if encountered: dest_pos["LT"]=(x,j+x-i)
-					break
-				else: encountered=1
-		encountered=0
-		for x in range (i-1, -1, -1): #3 dirns
-			#LB
-			if j-(x-i)<self.boardsize:
-				if self.board[x][j-(x-i)]==0: break
-				elif self.board[x][j-(x-i)]==self.turn:
-					if encountered: dest_pos["LB"]=(x,j-(x-i))
-					break
-				else: encountered=1
-		encountered=0
-		#down:
-		for y in range(j+1, self.boardsize):
-			if self.board[i][y]==0: break
-			if self.board[i][y]==self.turn: #keycheck not req.d since will break
-				if encountered: dest_pos["B"]=(i, y)
-				break
-			else: encountered=1
-		encountered=0
-		#up:
-		for y in range(j-1, -1, -1):
-			if self.board[i][y]==0: break
-			if self.board[i][y]==self.turn: #keycheck not req.d since will break
-				if encountered: dest_pos["T"]=(i, y)
-				break
-			else: encountered=1
-		encountered=0
-		for x in range (i+1, self.boardsize): #3 dirns
-			#right horizontal:
-			if self.board[x][j]==0: break
-			if self.board[x][j]==self.turn:
-				if encountered: dest_pos["R"]=(x,j)
-				break
-			else: encountered=1
-		encountered=0
-		for x in range (i+1, self.boardsize): #3 dirns
-			#RB; x increases here with step & x>i
-			if j+x-i<self.boardsize:
-				if self.board[x][j+x-i]==0: break
-				elif self.board[x][j+x-i]==self.turn:
-					if encountered: dest_pos["RB"]=(x,j+x-i)
-					break
-				else: encountered=1
-		encountered=0
-		for x in range (i+1, self.boardsize): #3 dirns
-			#RT
-			if j-(x-i)>=0:
-				if self.board[x][j-(x-i)]==0: break
-				elif self.board[x][j-(x-i)]==self.turn:
-					if encountered: dest_pos["RT"]=(x,j-(x-i))
-					break
-				else: encountered=1
+		#L
+		target=self.board[:i,j] #columns(x-coord) then rows(y-coord)
+		exit_locs=np.where(target==self.turn)[0] #a tuple with a single array in it
+											#NOTE: An empty np array does not have a well defined conversion to bool.
+		if exit_locs.size:
+			useful=target[exit_locs[-1]+1:]
+			if len(useful)>0 and 0 not in useful:
+				dest_pos["L"]=(exit_locs[-1], j)
+		#LT
+		target=np.diag(self.board, k=j-i)[:min(i,j)] #In choosing the diagonal, row & column are to be interpretted as per numpy bosrd, not how board is displayed
+		exit_locs=np.where(target==self.turn)[0] #a tuple with a single array in it
+											#NOTE: An empty np array does not have a well defined conversion to bool.
+		if exit_locs.size:
+			useful=target[exit_locs[-1]+1:]
+			if len(useful)>0 and 0 not in useful:
+				diff=min(i,j)-(exit_locs[-1])
+				dest_pos["LT"]=(i-diff, j-diff)
+		#LB
+		j1=self.boardsize-1-j #Again, working with numpy board, not visualised board. fliplr on next line along with initialisation of j1 on current line transforms this to LT
+		target=np.diag(np.fliplr(self.board), k=j1-i)[:min(i, j1)]
+		exit_locs=np.where(target==self.turn)[0] #a tuple with a single array in it
+											#NOTE: An empty np array does not have a well defined conversion to bool.
+		if exit_locs.size:
+			useful=target[exit_locs[-1]+1:]
+			if len(useful)>0 and 0 not in useful:
+				diff=min(i,j1)-(exit_locs[-1])
+				dest_pos["LB"]=(i-diff, (self.boardsize-1)-(j1-diff))
+		#B
+		target=self.board[i,j+1:] #columns(x-coord) then rows(y-coord)
+		exit_locs=np.where(target==self.turn)[0] #a tuple with a single array in it
+											#NOTE: An empty np array does not have a well defined conversion to bool.
+		if exit_locs.size:
+			useful=target[:exit_locs[0]]
+			if len(useful)>0 and 0 not in useful:
+				dest_pos["B"]=(i, j+1+exit_locs[0])
+		#T
+		target=self.board[i,:j] #columns(x-coord) then rows(y-coord)
+		exit_locs=np.where(target==self.turn)[0] #a tuple with a single array in it
+											#NOTE: An empty np array does not have a well defined conversion to bool.
+		if exit_locs.size:
+			useful=target[exit_locs[-1]+1:]
+			if len(useful)>0 and 0 not in useful:
+				dest_pos["T"]=(i, exit_locs[-1])
+		#R
+		target=self.board[i+1:,j] #columns(x-coord) then rows(y-coord)
+		exit_locs=np.where(target==self.turn)[0] #a tuple with a single array in it
+											#NOTE: An empty np array does not have a well defined conversion to bool.
+		if exit_locs.size:
+			useful=target[:exit_locs[0]]
+			if len(useful)>0 and 0 not in useful:
+				dest_pos["R"]=(i+1+exit_locs[0], j)
+		#RB
+		target=np.diag(self.board, k=j-i)[min(i,j)+1:] #In choosing the diagonal, row & column are to be interpretted as per numpy bosrd, not how board is displayed
+		exit_locs=np.where(target==self.turn)[0] #a tuple with a single array in it
+											#NOTE: An empty np array does not have a well defined conversion to bool.
+		if exit_locs.size:
+			useful=target[:exit_locs[0]]
+			if len(useful)>0 and 0 not in useful:
+				diff=-(exit_locs[0]+1)
+				dest_pos["RB"]=(i-diff, j-diff)
+		#RT
+		j1=self.boardsize-1-j #Again, working with numpy board, not visualised board. fliplr on next line along with initialisation of j1 on current line transforms this to RB
+		target=np.diag(np.fliplr(self.board), k=j1-i)[min(i, j1)+1:]
+		exit_locs=np.where(target==self.turn)[0] #a tuple with a single array in it
+											#NOTE: An empty np array does not have a well defined conversion to bool.
+		if exit_locs.size:
+			useful=target[:exit_locs[0]]
+			if len(useful)>0 and 0 not in useful:
+				diff=-(exit_locs[0]+1)
+				dest_pos["RT"]=(i-diff, (self.boardsize-1)-(j1-diff)) #Convert back to RT
 		#if not defined, set to (i,j)
 		if dest_pos==dict(): return False
 		for key in ["L", "LT", 'T', 'RT', 'R', 'RB', 'B', 'LB']:
@@ -457,13 +461,13 @@ class Othello(Board):
 		return dest_pos
 
 	def exists_valid(self):
-		#Should use validate_pos(i, j)
-		for i in range(self.boardsize):
-			for j in range(self.boardsize):
-				if self.board[i][j]==0 and self.validate_pos(i,j): return True
-		return False
+		#Check that there exists a valid move
+		empty_locs=np.argwhere(self.board==0)
+		return any(self.validate_pos(i,j) for i, j in empty_locs)
 
-	def get_click_sq(self, event): #returns False upon invalid event, else returns a tuple (i,j) representing a rectangle.
+	def get_click_sq(self, event):
+		#if click is on a square on board, returns a tuple (i,j) representing a square on the board; otherwise returns False
+		#Assumes that event.type  pg.MOUSEBUTTONDOWN
 		mx,my=event.pos
 		for i in range(self.boardsize):
 			x=self.num_ax_width+i*self.min_dim/self.boardsize+(i+1)*self.sqpad
@@ -475,92 +479,163 @@ class Othello(Board):
 						return i,j
 		return False
 
+	def flipper(self, fps=60):
+		#Animate the flipping of tokens
+		#to_flip is a dict; same as that returned by validate_pos
+
+		frame=int(fps*(time.time()-self.anim_start_t))
+		diff, loc_frame=divmod(frame, self.total_anim_frames)
+		#diff -> number of steps taken as per stepd
+		#loc_frame -> frame number for the animation of token currently being animated
+		escaped=dict()
+		#escaped here refers to token in process of being animated (unless target (defined in play; initialised here) is reached in some particular direction, in which case that entry of escaped is not animated any further)
+		xo,yo=self.escaped["RB"]-1
+		for key in self.escaped:
+			#check if target is not being exceeded
+			xe,ye=list(np.add(self.escaped[key], np.multiply(self.stepd[key], diff)))
+			xt,yt=self.target[key]
+			if abs(xo-xe)+abs(xe-xt)==abs(xo-xt) and abs(yo-ye)+abs(ye-yt)==abs(yo-yt):
+				escaped[key]=[xe,ye]
+			else: escaped[key]=[xt,yt]
+			i,j=escaped[key]
+			self.board[i][j]=3-self.turn
+		boundary=self.half_cycle_frames+self.delay_frames//3
+		phase=0 if loc_frame<boundary else 1
+		imgl=[self.p1tokimg, self.p2tokimg][::int(2*(self.turn-1.5))] #same if self.turn=2; else reverse
+		img=imgl[phase]
+
+		for key, val in escaped.items():
+			#animate conditionally
+			if escaped[key]!=self.target[key]:
+				x,y=val
+				sq_y=self.height*0.24+y*self.min_dim/self.boardsize+(y+1)*self.sqpad
+				sq_x=self.num_ax_width+x*self.min_dim/self.boardsize+(x+1)*self.sqpad
+				rect=pg.Rect(sq_x, sq_y, self.sqsize, self.sqsize)
+				sq_util=pg.transform.scale(self.sqimg, (rect.width, rect.height))
+				self.screen.blit(sq_util, rect)
+				if loc_frame in range(self.half_cycle_frames):
+					utiltok=pg.transform.scale(img, (rect.width*(1-abs(self.stepd[key][0])*loc_frame/self.half_cycle_frames), rect.height*(1-abs(self.stepd[key][1])*loc_frame/self.half_cycle_frames)))
+					utilrect=utiltok.get_rect(center=rect.center)
+					self.screen.blit(utiltok, utilrect)
+				elif loc_frame in range(boundary, boundary+self.half_cycle_frames):
+					loc_frame-=boundary
+					x_scale=loc_frame/self.half_cycle_frames if abs(self.stepd[key][0])==1 else 1
+					y_scale=loc_frame/self.half_cycle_frames if abs(self.stepd[key][1])==1 else 1
+					utiltok=pg.transform.scale(img, (rect.width*x_scale, rect.height*y_scale))
+					utilrect=utiltok.get_rect(center=rect.center)
+					self.screen.blit(utiltok, utilrect)
+				if phase==0 and loc_frame>self.half_cycle_frames: pg.draw.rect(self.screen, (245,245,245), rect)
+
+		if (escaped==self.target):
+			self.anim_start_t=None
+			self.escaped=None
+
+	def option_screen(self,option_button_width,option_button_height,option_screen_button_width, pos,event,style=None):
+		#TODO comments from game.py
+		#Overriding that in Board class
+		w,h=self.screen.get_size()
+		self.options.assign("OPTIONS",pos[0],pos[1],option_button_width,option_button_height,self.normal,style=style)
+		self.options.draw(self.screen)
+		#print(self.showing_options)
+		if self.options.handle_event(event) or self.showing_options:
+			col=self._C_ACCENT if style is None else style[3]
+			text=[(pg.font.SysFont("Consolas",int(w*0.0319), bold=True),"GAME OPTIONS",col,0.2415*w,0.1146*h,True,0.00275*w,50)]
+			bars=[(0.2415*w,0.1146*h+text[0][0].get_height()*1.2,0.484*w)]
+			self.fancy_screen(text,[],bars,style)
+			font=pg.font.SysFont("Consolas",int(0.14*option_screen_button_width),bold=True)
+			self.resign1.assign("PLAYER 1 RESIGNS",int(0.2845*w),int(0.284*h),int(0.338*w),int(0.123*h),font,-int(0.05*w),style=style)
+			self.resign2.assign("PLAYER 2 RESIGNS",int(0.2845*w),int(0.437*h),int(0.338*w),int(0.123*h),font,-int(0.05*w),style=style)
+			self.quit.assign("QUIT GAME",int(0.2845*w),int(0.59*h),int(0.338*w),int(0.123*h),font,-int(0.08375*w),style=style)
+			self.resume.assign("RESUME",int(0.2845*w),int(0.743*h),int(0.338*w),int(0.123*h),font,-int(0.09625*w),style=style)
+			self.resign1.draw(self.screen)
+			self.resign2.draw(self.screen)
+			self.quit.draw(self.screen)
+			self.resume.draw(self.screen)
+			self.showing_options=True
+			if self.resign1.handle_event(event):
+				self.showing_options=False
+				return 1
+			if self.resign2.handle_event(event):
+				self.showing_options=False
+				return 2
+			if self.quit.handle_event(event):
+				self.showing_options=False
+				return 3
+			if self.resume.handle_event(event):
+				self.showing_options=False
+			return True
+		return False
 
 	def play(self, turn, event): #the variable turn is taken just to match game.py
 		#returns False if something invalid occurs, else returns true
 		self.draw_board()
-		if self.shown_help==1:
-			self.prev_scroll=self.display_help()
-		elif self.shown_help==2:
-			self.scroll=self.prev_scroll
-			self.shown_help=0 #made the change to prevent self.scroll from getting trapped (3 states were thus required)
-			self.to_log()
-			self.display_log()
-		else:
-			self.to_log()
-			self.display_log()
-		if not self.exists_valid():
-			self.log.append(((self.turn_num, self.turn),("No valid turn exists. Skipping...", (255,85,255)))) #colour from ansi escape codes
-			to_pop=self.to_log()
-			if to_pop: self.log.pop(0)
-			self.display_log()
-			self.sk[self.turn-1]=1
-			#turn_change() called in ../game.py
-			#TODO implement notification
-			return True
-		elif self.settings.handle_event(event):
-			self.shown_settings=1-self.shown_settings
-			#TODO
-		elif self.help.handle_event(event):
-			self.shown_help+=1
-		elif event.type == pg.MOUSEWHEEL:
-			temp=self.scroll
-			self.scroll-=event.y*self.scroll_sensitivity
-			if not (self.scroll>=0 and self.scroll<=1000*self.abs_scale-self.log_height): self.scroll=temp
-		else:
-			self.sk[self.turn-1]=0
-			if event.type == pg.MOUSEBUTTONDOWN: event_status=self.get_click_sq(event)
-			else: return False
-			if not event_status: return False
-			i,j=event_status
-			dest_pos=self.validate_pos(i,j)
-			if not dest_pos:
-				self.log.append(((self.turn_num, self.turn),(f"Invalid position ({i}, {j})", (255,60,60)))) #again colour from ansi escape codes
-				#Consider (255, 85, 85) instead in case of low visibility of this red.
+		#self.options=Button("Options", self.log_x, 0.1*self.height, self.log_width*0.475, self.button_height, self.normal)
+		temp=self.option_screen(self.log_width*0.475, self.button_height, 0.13*self.width, (self.log_x, 0.1*self.height),event,self.style)
+		if not isinstance(temp, bool):
+			if temp==1:
+				self.p1resign=True
+			elif temp==2:
+				self.p2resign=True
+			else:
+				self.quitted=True
+			return False
+		if temp: #TODO comment
+			return False
+		if self.anim_start_t is None:
+			if self.shown_help==1:
+				self.prev_scroll=self.display_help()
+			elif self.shown_help==2:
+				self.scroll=self.prev_scroll
+				self.shown_help=0 #made the change to prevent self.scroll from getting trapped (3 states were thus required)
+				self.to_log()
+				self.display_log()
+			else:
+				self.to_log()
+				self.display_log()
+			if not self.exists_valid():
+				self.log.append(((self.turn_num, self.turn),("No valid turn exists. Skipping...", (255,85,255)))) #colour from ansi escape codes
 				to_pop=self.to_log()
 				if to_pop: self.log.pop(0)
-				return False
-			self.board[i][j]=self.turn
-			#flipping: TODO flipping animation (loops will need modification since not all tokens accessed in loop are of opposite color; own tokens (<=3 of them) need to be excluded.
-			#horizontal:
-			for x in range(dest_pos['L'][0], dest_pos['R'][0]):
-				self.board[x][j]=self.turn
-			#vertical:
-			for y in range(dest_pos['T'][1], dest_pos['B'][1]):
-				self.board[i][y]=self.turn
-			#standard diagonal:
-			for x in range(dest_pos['LT'][0], dest_pos['RB'][0]):
-				self.board[x][j+(x-i)]=self.turn
-			#other diagonal:
-			for x in range(dest_pos['LB'][0], dest_pos['RT'][0]): #x => left to right
-				self.board[x][j-(x-i)]=self.turn
-			if self.turn==1: self.p1used+=1
-			else: self.p2used+=1
-				#increment self.piused
-			self.log.append(((self.turn_num, self.turn),(f'Played ({i}, {j}); {self.max_tok-[self.p1used, self.p2used][self.turn-1]} tokens remaining', (0,170,0)))) #again colour from ansi escape codes
-			#Consider (85,255,85) instead if low visibility
-			to_pop=self.to_log()
-			if to_pop: self.log.pop(0)
-			return True
+				self.display_log()
+				self.sk[self.turn-1]=1
+				#turn_change() called in ../game.py
+				return True
+			elif self.help.handle_event(event):
+				self.shown_help+=1
+			elif event.type == pg.MOUSEWHEEL:
+				temp=self.scroll
+				self.scroll-=event.y*self.scroll_sensitivity
+				if not (self.scroll>=0 and self.scroll<=1000*self.abs_scale-self.log_height): self.scroll=temp
+			else:
+				self.sk[self.turn-1]=0
+				if event.type == pg.MOUSEBUTTONDOWN: event_status=self.get_click_sq(event)
+				else: return False
+				if not event_status: return False
+				i,j=event_status
+				dest_pos=self.validate_pos(i,j)
+				if not dest_pos:
+					self.log.append(((self.turn_num, self.turn),(f"Invalid position ({i}, {j})", (255,60,60)))) #again colour from ansi escape codes
+					#Consider (255, 85, 85) instead in case of low visibility of this red.
+					to_pop=self.to_log()
+					if to_pop: self.log.pop(0)
+					return False
+				self.board[i][j]=self.turn
+				self.anim_start_t=time.time()
+				self.target={key:[val[0], val[1]] for key,val in dest_pos.items()}
+				self.escaped={key:np.add([i,j], self.stepd[key]) for key in self.stepd}
+				self.flipper() #TODO
+				if self.turn==1: self.p1used+=1
+				else: self.p2used+=1
+					#increment self.piused
+				self.log.append(((self.turn_num, self.turn),(f'Played ({i}, {j}); {self.max_tok-[self.p1used, self.p2used][self.turn-1]} tokens remaining', (0,170,0)))) #again colour from ansi escape codes
+				#Consider (85,255,85) instead if low visibility
+				to_pop=self.to_log()
+				if to_pop: self.log.pop(0)
+				return True
 				#commit turn_change 
-			#turn_change() called in ../game.py
-
-	#Gameplay initial draft:
-		#on turn of player x:
-			#'''func1: pres line -> bool'''#If exists valid turn: (Loop until valid move played or 3 incorrect moves made.)
-				#On event mouseclick (Enable use of game by keyboard?)
-				#'''func2: pres line -> bool'''#Check1: square should be empty
-				#'''func3: pres & next line -> bool'''#Check2: Bounds squares of opposite colour in any of the eight directions.
-					#For valid check in Check2: commence colour change
-					#'''func4: pres line -> bool''' #If move invalid, raise some sort of notification for move being invalid, or show some vibration of screen. (TODO: Determine how long notification will be visible)Menu
-			#Else:
-				#If other player had played in their last turn:
-					#'''func5: pres line -> bool(success)'''#Notify that no turn is feasible (TODO: Determine how long notification will be visible)
-						#'''func6: pres line -> bool(success)'''#Can have a sidebar which shows history of such events, ordered by move number.
-					#Skip player's present turn.
-				#Else:
-					#End game
-					#Check win condition, return winning player
+				#turn_change() called in ../game.py
+		else:
+			self.flipper() #TODO
 
 	def win_check(self, turn): #the variable turn is taken just to match game.py
 		''' checks if game over
@@ -573,11 +648,3 @@ class Othello(Board):
 		if c[1]>c[2]: return 1
 		elif c[2]>c[1]: return 2
 		else: return 0
-
-	def wipeout(self): #returns winner if wipeout, else returns 0
-		if np.all(self.board==1): wiper=1
-		elif np.all(self.board==2): wiper=2
-		else: wiper=0
-	#TODO: manage displaying
-		return wiper
-
