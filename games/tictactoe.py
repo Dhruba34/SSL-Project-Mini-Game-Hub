@@ -106,18 +106,45 @@ class Tictactoe(Board):
         self.p1resign=False
         self.p2resign=False
         self.quitted=False
+        self.turnanim=False
+        self.t0turn=None
+        self.turnlength=0.3*width
+        self.turn_dur=0.2
     def maximize(self,width,height,screen):
         t0=self.playing_board.t0
         self.playing_board=draw(width,height,screen,self.player1,self.player2)
         self.playing_board.t0=t0
         self.playing_board.draw_board(self.board)
         self.screen=screen
+        self.turnlength=0.3*width
     def reset(self):
         self.board=np.zeros((10,10))
     def play(self, turn, event=None):
         w,h=self.screen.get_width(),self.screen.get_height()
         self.playing_board.draw_board(self.board)  # always redraw full board
-        temp=super().option_screen(0.13*w,0.0827*h,(0.0156*w,0.893*h),event)
+        v=0.4*h
+        if self.turnanim:
+            #print("here")
+            elapsed=time.time()-self.t0turn
+            if elapsed>self.turn_dur:
+                self.turnanim=False
+                self.t0turn=None
+                return
+            l=self.turnlength*(1-elapsed/self.turn_dur)**2
+            if self.turn==1:
+                pygame.draw.line(self.screen,(255,0,160),(w,v),(w-l,v),5)
+                pygame.draw.line(self.screen,(0,245,255),(0,v),(self.turnlength-l,v),5)
+            elif self.turn==2:
+                pygame.draw.line(self.screen,(0,245,255),(0,v),(l,v),5)
+                pygame.draw.line(self.screen,(255,0,160),(w,v),(w-self.turnlength+l,v),5)
+            temp=super().option_screen(0.13*w,0.0827*h,(0.0156*w,0.893*h),event)
+            return False
+        else:
+            if self.turn==1:
+                pygame.draw.line(self.screen,(0,245,255),(0,v),(self.turnlength,v),5)
+            elif self.turn==2:
+                pygame.draw.line(self.screen,(255,0,160),(w,v),(w-self.turnlength,v),5)
+            temp=super().option_screen(0.13*w,0.0827*h,(0.0156*w,0.893*h),event)
         if type(temp)!=bool:
             if temp==1:
                 self.p1resign=True
@@ -242,10 +269,14 @@ class Tictactoe(Board):
             self.turn=0
             return
         if changed:
+            self.turnanim=True
+            self.t0turn=time.time()
             if self.turn==1:
                 self.turn=2
             else:
                 self.turn=1
+        
+
 
 
 
