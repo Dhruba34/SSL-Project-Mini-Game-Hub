@@ -8,6 +8,7 @@ import time
 import math
 
 class draw:
+    #the class which handles how to draw the screen with texts and buttons
     def __init__(self,width,height,screen,player1,player2):
         self.width=int(0.307*width)
         self.height=self.width
@@ -23,7 +24,7 @@ class draw:
         self.t0=None
         self.grid=pygame.Rect((width-self.width)/2+0.007*self.width,(height-self.height)/2+0.006*self.width,self.width,self.height)
 
-    def crop_name(self, font, width, pnum, color):
+    def crop_name(self, font, width, pnum, color): #to truncate the names to be displayed
         pnum=pnum-1 #converting to index
         name=[self.player1, self.player2][pnum]
         if font.size(name+'i')[0]>width: #the 'i' is to ensure text doesn't go too close to edge
@@ -42,6 +43,7 @@ class draw:
         return font.render(f'{name}', True, color)
 
     def draw_board(self,info):
+        #the function to draw the board
         pygame.draw.rect(self.screen,self.color,self.grid,border_radius=10)
         mx, my = pygame.mouse.get_pos()
         w,h=self.screen.get_size()
@@ -92,6 +94,7 @@ class draw:
                 elif info[i][j]==2:
                     self.draw_o(self.screen,rect,self.color2)
     def draw_x(self,surface, rect,color):
+        #draws the x piece
         x,y,size,_=rect
         half = size // 2
         x+=half
@@ -102,6 +105,7 @@ class draw:
         pygame.draw.line(surface, (240, 240, 255), (x - half, y - half), (x + half, y + half), max(int(2/60*size),1))
         pygame.draw.line(surface, (240, 240, 255), (x + half, y - half), (x - half, y + half), max(int(2/60*size),1))
     def draw_o(self,surface, rect,color):
+        #draws the o piece
         x,y,radius,_=rect
         radius=radius//2
         x+=radius
@@ -111,6 +115,7 @@ class draw:
         pygame.draw.circle(surface, (240,240,255), (x, y), radius, max(int(2/18*radius),1))
 
 class Tictactoe(Board):
+    #the main class
     def __init__(self,width,height,screen,player1,player2):
         super().__init__(player1, player2, width, height, stats=None, screen=screen)
         self.player1,self.player2=player1,player2

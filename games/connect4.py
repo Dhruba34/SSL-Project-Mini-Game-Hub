@@ -8,6 +8,7 @@ import time
 import math
 
 class draw:
+    #draws the screen
     def __init__(self, width, height, screen,name1,name2):
         self.screen = screen
         self.width = width
@@ -32,6 +33,7 @@ class draw:
         self.pointer_duration=0.2
 
     def crop_name(self, font, width, pnum, color):
+        #crops the names
         width=width*0.8
         pnum=pnum-1 #converting to index
         name=[self.name1, self.name2][pnum]
@@ -52,6 +54,7 @@ class draw:
 
 
     def draw_board(self, info,event):
+        #draws the board actually
         for i in range(7):
             for j in range(7):
                 center=(j*self.hori_centers+self.start_center[0],i*self.height_centers+self.start_center[1])
@@ -88,10 +91,12 @@ class draw:
         pygame.draw.polygon(self.screen, (0,0,0), pts,width=int(0.2*self.pointer_size))
 
     def draw_piece(self, surface, center, piece):
+        #pastes the suitable picture for piece
         surface.blit(piece,(center[0]-self.radius,center[1]-self.radius))
 
 
 class Connect4(Board):
+    #the main class
     def __init__(self,width,height,screen,name1,name2):
         super().__init__(name1, name2, width, height, stats=None, screen=screen)
         self.playing_board=draw(width,height,screen,name1,name2)
