@@ -117,7 +117,7 @@ class draw:
 class Tictactoe(Board):
     #the main class
     def __init__(self,width,height,screen,player1,player2):
-        super().__init__(player1, player2, width, height, stats=None, screen=screen)
+        super().__init__(player1, player2, width, height,stats=None, screen=screen)
         self.player1,self.player2=player1,player2
         self.playing_board=draw(width,height,screen,self.player1,self.player2)
         self.board=np.zeros((10,10))

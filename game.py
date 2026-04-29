@@ -17,9 +17,9 @@ class TransitionManager:#Manages the fading in and out of screen
         self.game= 0
         self.snapshot=None#to have a screenshot of the screen last seen before fading in
         self.just_finished=False#indicator of whether 
-        self.fade_duration=0.5#duration of fading out when new screen appears
-        self.show_duration=3.6#duration of fading in when darkness appears
-        self.reveal_duration=5.1#duration of stopping for a moment in darkness and showing some animation
+        self.fade_dur=0.5#duration of fading out when new screen appears
+        self.show_dur=3.6#duration of fading in when darkness appears
+        self.reveal_dur=1.5#duration of stopping for a moment in darkness and showing some animation
         self.reveal_img=""#the image which will be slowly appearing
         self.board=None
 
@@ -60,7 +60,7 @@ class TransitionManager:#Manages the fading in and out of screen
 
         elif self.state == "show":#the second phase of animation
             self._draw_splash(w, h, elapsed)#the function to draw the horizontal bars and the blinking texts
-            if elapsed >= self.reveal_dur:#
+            if elapsed >= self.reveal_dur+self.show_dur:#
                 self.t0, self.state = now, "fade_in"
                 self.snapshot  = pygame.image.load(self.reveal_img)#here the snapshot is replaced and then snapshot will be slowly revealed
                 self.board.bg  = pygame.transform.scale(
@@ -339,10 +339,11 @@ class Board:# the main class
     _C_BORDER   = (0,  100, 200)   # accent border
     _C_ACCENT   = (0,  180, 255)   # bright cyan-blue
 
-    def __init__(self,player1,player2,width,height,screen=None):
+    def __init__(self,player1,player2,width,height,stats=None,screen=None):
         #player names
         self.player1=player1
         self.player2=player2
+        self.stats=stats
         if screen==None:
             self.screen=pygame.display.set_mode((width,height),pygame.RESIZABLE)
         else:

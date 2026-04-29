@@ -98,7 +98,7 @@ class draw:
 class Connect4(Board):
     #the main class
     def __init__(self,width,height,screen,name1,name2):
-        super().__init__(name1, name2, width, height, stats=None, screen=screen)
+        super().__init__(name1, name2, width, height,stats=None, screen=screen)
         self.playing_board=draw(width,height,screen,name1,name2)
         self.board=np.zeros((7,7))
         self.screen=screen
