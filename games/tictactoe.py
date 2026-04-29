@@ -255,7 +255,8 @@ class Tictactoe(Board):
             rect = pygame.Rect(x, y, self.playing_board.cell_size, self.playing_board.cell_size)
             alpha = abs(int(60 + 80 * pulse))
             glow_surface = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-            pygame.draw.rect(glow_surface,(237,120,85,alpha),glow_surface.get_rect(),border_radius=self.playing_board.radius)
+            highlight_color=(*self.playing_board.color1, alpha) if self.winner==1 else (*self.playing_board.color2, alpha)
+            pygame.draw.rect(glow_surface,(highlight_color),glow_surface.get_rect(),border_radius=self.playing_board.radius)
             self.screen.blit(glow_surface, rect.topleft)
             if self.board[row][col] == 1:
                 self.playing_board.draw_x(self.screen, rect, self.playing_board.color1)
