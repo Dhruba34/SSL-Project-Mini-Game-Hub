@@ -21,9 +21,9 @@ class TransitionManager:
         self.game= 0
         self.snapshot=None
         self.just_finished=False
-        self.fade_duration=0.1#0.5
-        self.show_duration=0.1#3.6
-        self.reveal_duration=0.1#1.5
+        self.fade_duration=0.5
+        self.show_duration=3.6
+        self.reveal_duration=1.5
         self.reveal_img=""
         self.board=None
 
