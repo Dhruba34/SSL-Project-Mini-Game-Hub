@@ -501,7 +501,7 @@ class Othello(Board):
 			self.board[i][j]=3-self.turn
 		boundary=self.half_cycle_frames+self.delay_frames//3
 		phase=0 if loc_frame<boundary else 1
-		imgl=[self.p1tokimg, self.p2tokimg][::int(2*(self.turn-1.5))] #same if self.turn=2; else reverse
+		imgl=[self.p1tokimg, self.p2tokimg][::int(2*(1.5-self.turn))] #same if self.turn=2; else reverse
 		img=imgl[phase]
 
 		for key, val in escaped.items():
@@ -514,14 +514,13 @@ class Othello(Board):
 				sq_util=pg.transform.scale(self.sqimg, (rect.width, rect.height))
 				self.screen.blit(sq_util, rect)
 				if loc_frame in range(self.half_cycle_frames):
-					utiltok=pg.transform.scale(img, (rect.width*(1-abs(self.stepd[key][0])*loc_frame/self.half_cycle_frames), rect.height*(1-abs(self.stepd[key][1])*loc_frame/self.half_cycle_frames)))
+					utiltok=pg.transform.scale(img, (rect.width, rect.height*np.sin(0.5*np.pi*(1-loc_frame/self.half_cycle_frames))))
 					utilrect=utiltok.get_rect(center=rect.center)
 					self.screen.blit(utiltok, utilrect)
 				elif loc_frame in range(boundary, boundary+self.half_cycle_frames):
-					loc_frame-=boundary
-					x_scale=loc_frame/self.half_cycle_frames if abs(self.stepd[key][0])==1 else 1
-					y_scale=loc_frame/self.half_cycle_frames if abs(self.stepd[key][1])==1 else 1
-					utiltok=pg.transform.scale(img, (rect.width*x_scale, rect.height*y_scale))
+					dirn_loc_frame=loc_frame-boundary
+					y_scale=np.sin(np.pi*(dirn_loc_frame/self.half_cycle_frames)/2)
+					utiltok=pg.transform.scale(img, (rect.width, rect.height*y_scale))
 					utilrect=utiltok.get_rect(center=rect.center)
 					self.screen.blit(utiltok, utilrect)
 				if phase==0 and loc_frame>self.half_cycle_frames: pg.draw.rect(self.screen, (245,245,245), rect)
