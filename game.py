@@ -11,25 +11,25 @@ class TransitionManager:
     GAME_COLORS = {0: (0, 200, 255), 1: (180, 100, 255), 2: (255, 140, 0)}
 
     def __init__(self, screen):
-        self.screen       = screen
-        self.state        = "idle"
-        self.t0           = 0.0
-        self.game         = 0
-        self.snapshot     = None
-        self.just_finished= False
-        self.fade_dur     = 0.5
-        self.show_dur     = 3.6
-        self.reveal_dur   = 1.5
-        self.reveal_img   = ""
-        self.board        = None
+        self.screen=screen
+        self.state="idle"
+        self.t0=0.0
+        self.game= 0
+        self.snapshot=None
+        self.just_finished=False
+        self.fade_duration=0.5
+        self.show_duration=3.6
+        self.reveal_duration=1.5
+        self.reveal_img=""
+        self.board=None
 
-    def start(self, game_index, reveal_img, board):
-        self.game       = game_index
-        self.t0         = time.time()
-        self.state      = "fade_out"
-        self.snapshot   = self.screen.copy()
-        self.reveal_img = reveal_img
-        self.board      = board
+    def start(self, game_index,reveal_img,board):
+        self.game=game_index
+        self.t0=time.time()
+        self.state="fade_out"
+        self.snapshot=self.screen.copy()
+        self.reveal_img=reveal_img
+        self.board=board
 
     def active(self):
         return self.state != "idle"
