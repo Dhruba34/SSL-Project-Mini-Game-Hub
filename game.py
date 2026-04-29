@@ -8,133 +8,138 @@ import math
 
 class TransitionManager:
     GAME_NAMES  = {0: "TIC TAC TOE", 1: "OTHELLO", 2: "CONNECT 4"}
-    GAME_COLORS = {
-        0: (0, 200, 255),
-        1: (180, 100, 255),
-        2: (255, 140, 0),
-    }
+    GAME_COLORS = {0: (0, 200, 255), 1: (180, 100, 255), 2: (255, 140, 0)}
 
     def __init__(self, screen):
-        self.screen=screen
-        self.state="idle"
-        self.t0=0.0
-        self.game= 0
-        self.snapshot=None
-        self.just_finished=False
-        self.fade_duration=0.1#0.5
-        self.show_duration=0.1#3.6
-        self.reveal_duration=0.1#1.5
-        self.reveal_img=""
-        self.board=None
+        self.screen       = screen
+        self.state        = "idle"
+        self.t0           = 0.0
+        self.game         = 0
+        self.snapshot     = None
+        self.just_finished= False
+        self.fade_dur     = 0.5
+        self.show_dur     = 3.6
+        self.reveal_dur   = 1.5
+        self.reveal_img   = ""
+        self.board        = None
 
-    def start(self, game_index,reveal_img,board):
-        self.game=game_index
-        self.t0=time.time()
-        self.state="fade_out"
-        self.snapshot=self.screen.copy()
-        self.reveal_img=reveal_img
-        self.board=board
+    def start(self, game_index, reveal_img, board):
+        self.game       = game_index
+        self.t0         = time.time()
+        self.state      = "fade_out"
+        self.snapshot   = self.screen.copy()
+        self.reveal_img = reveal_img
+        self.board      = board
 
     def active(self):
-        return self.state!="idle"
+        return self.state != "idle"
 
     @property
-    def done(self) -> bool:
-        return self.state=="idle" and self.just_finished
+    def done(self):
+        return self.state == "idle" and self.just_finished
+
+    def _overlay(self, w, h, alpha):
+        s = pygame.Surface((w, h))
+        s.fill((0, 0, 0))
+        s.set_alpha(alpha)
+        self.screen.blit(s, (0, 0))
 
     def update(self):
         self.just_finished = False
-        if self.state=="idle":
+        if self.state == "idle":
             return
-        now=time.time()
-        elapsed=now-self.t0
-        w,h=self.screen.get_size()
+        now, elapsed = time.time(), time.time() - self.t0
+        w, h = self.screen.get_size()
 
-        if self.state=="fade_out":
-            alpha=int(255*min(elapsed/self.fade_duration,1.0))
+        if self.state == "fade_out":
             if self.snapshot:
-                snap=pygame.transform.scale(self.snapshot,(w,h))
-                self.screen.blit(snap,(0,0))
-            overlay = pygame.Surface((w,h))
-            overlay.fill((0,0,0))
-            overlay.set_alpha(alpha)
-            self.screen.blit(overlay, (0,0))
-            if elapsed>=self.fade_duration:
-                self.t0=now
-                self.state="show"
-        elif self.state=="show":
-            self.draw_splash(w, h, elapsed)
-            if elapsed >= self.reveal_duration + self.show_duration:
-                self.t0=now
-                self.state="fade_in"
-                self.snapshot=pygame.image.load(self.reveal_img)
-                self.board.bg=pygame.transform.scale(pygame.image.load(self.reveal_img),(self.board.width,self.board.height))
-        elif self.state=="fade_in":
-            alpha=int(255*(1-min(elapsed/self.fade_duration,1)))
-            overlay=pygame.Surface((w, h))
-            overlay.fill((0, 0, 0))
-            overlay.set_alpha(alpha)
-            self.screen.blit(overlay, (0, 0))
-            if elapsed>=self.fade_duration:
-                self.state="idle"
-                self.just_finished=True
+                self.screen.blit(pygame.transform.scale(self.snapshot, (w, h)), (0, 0))
+            self._overlay(w, h, int(255 * min(elapsed / self.fade_dur, 1.0)))
+            if elapsed >= self.fade_dur:
+                self.t0, self.state = now, "show"
 
-    def draw_splash(self, w, h, elapsed):
-        accent=self.GAME_COLORS[self.game]
-        name=self.GAME_NAMES[self.game]
+        elif self.state == "show":
+            self._draw_splash(w, h, elapsed)
+            if elapsed >= self.reveal_dur + self.show_dur:
+                self.t0, self.state = now, "fade_in"
+                self.snapshot  = pygame.image.load(self.reveal_img)
+                self.board.bg  = pygame.transform.scale(
+                    pygame.image.load(self.reveal_img),
+                    (self.board.width, self.board.height)
+                )
+
+        elif self.state == "fade_in":
+            self._overlay(w, h, int(255 * (1 - min(elapsed / self.fade_dur, 1))))
+            if elapsed >= self.fade_dur:
+                self.state, self.just_finished = "idle", True
+
+    def _draw_splash(self, w, h, elapsed):
+        accent = self.GAME_COLORS[self.game]
+        name   = self.GAME_NAMES[self.game]
+
+        # Background grid
         self.screen.fill((0, 0, 0))
         for y in range(0, h, 18):
-            pygame.draw.line(self.screen, (10, 10, 10), (0, y), (w, y),1)
+            pygame.draw.line(self.screen, (10, 10, 10), (0, y), (w, y), 1)
         for x in range(0, w, 36):
             pygame.draw.line(self.screen, (8, 8, 8), (x, 0), (x, h), 1)
-        t_pulse = elapsed*3.0
-        bar_alpha = int(80 + 60 * math.sin(t_pulse))
-        bar_surf = pygame.Surface((w, 3), pygame.SRCALPHA)
-        bar_surf.fill((*accent, bar_alpha))
-        self.screen.blit(bar_surf, (0, h // 2 - 60))
-        self.screen.blit(bar_surf, (0, h // 2 + 60))
-        margin, arm = 24, 22
-        bk_alpha = min(255, int(255 * elapsed / 0.2))
-        bk_surf  = pygame.Surface((w, h), pygame.SRCALPHA)
-        c = (*accent, bk_alpha)
-        pairs = [
-            ((margin, margin),         (1, 0), (0, 1)),
-            ((w - margin, margin),     (-1, 0), (0, 1)),
-            ((margin, h - margin),     (1, 0), (0, -1)),
-            ((w - margin, h - margin), (-1, 0), (0, -1)),
-        ]
-        for (cx, cy), (dx, dy), (ex, ey) in pairs:
-            pygame.draw.line(bk_surf, c, (cx, cy), (cx + dx*arm, cy + dy*arm), 2)
-            pygame.draw.line(bk_surf, c, (cx, cy), (cx + ex*arm, cy + ey*arm), 2)
-        self.screen.blit(bk_surf, (0, 0))
-        reveal_frac = min(elapsed/self.reveal_duration, 1.0)
-        chars_shown  = int(len(name) * reveal_frac)
-        visible_text = name[:chars_shown]
-        cursor       = "_" if chars_shown < len(name) else ""
-        font_size = max(28, min(72, int(w * 0.075)))
-        try:
-            font = pygame.font.SysFont("Consolas", font_size, bold=True)
-        except Exception:
-            font = pygame.font.Font(None, font_size)
-        glow_surf = font.render(visible_text + cursor, True,
-                                tuple(max(0, c - 100) for c in accent))
-        gx = (w - glow_surf.get_width())  // 2
-        gy = (h - glow_surf.get_height()) // 2
-        for off in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
-            self.screen.blit(glow_surf, (gx + off[0], gy + off[1]))
-        txt = font.render(visible_text + cursor, True, accent)
-        self.screen.blit(txt, (gx, gy))
-        if reveal_frac >= 1.0:
-            sub_alpha = int(255 * min((elapsed-self.reveal_duration) / 0.3, 1.0))
+
+        # Pulsing horizontal bars
+        bar = pygame.Surface((w, 3), pygame.SRCALPHA)
+        bar.fill((*accent, int(80 + 60 * math.sin(elapsed * 3.0))))
+        for dy in (int(-60/400*h), int(60/400*h)):
+            self.screen.blit(bar, (0, h // 2 + dy))
+
+        # Corner brackets
+        bk  = pygame.Surface((w, h), pygame.SRCALPHA)
+        arm = 22
+        c   = (*accent, min(255, int(255 * elapsed / 0.2)))
+        m   = 24
+        for (cx, cy), (dx, dy), (ex, ey) in [
+            ((m,   m),   (1,0),  (0,1)),
+            ((w-m, m),  (-1,0),  (0,1)),
+            ((m,   h-m), (1,0),  (0,-1)),
+            ((w-m, h-m),(-1,0),  (0,-1)),
+        ]:
+            pygame.draw.line(bk, c, (cx, cy), (cx+dx*arm, cy+dy*arm), 2)
+            pygame.draw.line(bk, c, (cx, cy), (cx+ex*arm, cy+ey*arm), 2)
+        self.screen.blit(bk, (0, 0))
+
+        # Main text
+        reveal_frac  = min(elapsed / self.reveal_dur, 1.0)
+        visible      = name[:int(len(name) * reveal_frac)]
+        cursor       = "_" if len(visible) < len(name) else ""
+        font_size    = max(28, min(72, int(w * 0.075)))
+        try:    font = pygame.font.SysFont("Consolas", font_size, bold=True)
+        except: font = pygame.font.Font(None, font_size)
+
+        glow = font.render(visible + cursor, True, tuple(max(0, c - 100) for c in accent))
+        txt  = font.render(visible + cursor, True, accent)
+        gx   = (w - txt.get_width()) // 2
+
+        if reveal_frac < 1.0:
+            # Only title — vertically centered alone
+            gy = h // 2 - txt.get_height() // 2
+            for ox, oy in [(-2,0),(2,0),(0,-2),(0,2)]:
+                self.screen.blit(glow, (gx+ox, gy+oy))
+            self.screen.blit(txt, (gx, gy))
+        else:
+            # Title + subtitle — centered together as a block
             sub_font  = pygame.font.SysFont("Consolas", max(12, font_size // 4))
             sub       = sub_font.render("LOADING BOARD...", True, accent)
+            sub_alpha = int(255 * min((elapsed - self.reveal_dur) / 0.3, 1.0))
             sub_surf  = pygame.Surface((sub.get_width(), sub.get_height()), pygame.SRCALPHA)
             sub_surf.blit(sub, (0, 0))
             sub_surf.set_alpha(sub_alpha)
-            self.screen.blit(sub_surf,
-                             ((w - sub.get_width()) // 2,
-                              gy + glow_surf.get_height() + 18))
 
+            gap       = int(h*0.03)
+            total_h   = txt.get_height() + gap + sub.get_height()
+            gy        = h // 2 - total_h // 2
+
+            for ox, oy in [(-2,0),(2,0),(0,-2),(0,2)]:
+                self.screen.blit(glow, (gx+ox, gy+oy))
+            self.screen.blit(txt, (gx, gy))
+            self.screen.blit(sub_surf, ((w - sub.get_width()) // 2, gy + txt.get_height() + gap))
 
 class Button:
     def __init__(self, text, x, y, w, h, font,offset=0,style=None):
@@ -376,6 +381,8 @@ class Board:
         self.quit=Button("",0,0,0,0,None)
         self.resume=Button("",0,0,0,0,None)
         self.showing_options=False
+        self.show=True
+        self.chartsbut=0
 
     def draw_corner_brackets(self, surf, rx, ry, rw, rh, arm=18, color=None, alpha=255, thick=2):
         color = color or self._C_ACCENT
@@ -605,7 +612,7 @@ class Board:
                 return True
         return False
 
-    def draw_gauge(self, ax, values, texts, colors, title=""):
+    def draw_gauge(self, ax, values, texts, colors, title="", theme=1):
         gap = 80
         total_arc = 360 - gap
         start_angle = 90 + gap / 2
@@ -621,15 +628,20 @@ class Board:
             filled_deg + [gap / 360],
             startangle=start_angle,
             colors=colors + ["none"],
-            wedgeprops=dict(width=ring_width, edgecolor="#1a0f08", linewidth=1.5),
+            wedgeprops=dict(width=ring_width,
+                            edgecolor="#1a0f08" if theme==1 else "#0a0015",
+                            linewidth=1.5),
             counterclock=False,
         )
-        # Subtle inner ring shadow
-        ax.add_patch(plt.Circle((0, 0), 1 - ring_width - 0.04,
-                                color="#12080300", zorder=0))
 
-        label_colors = ["#E8A44A", "#C0523A", "#6B9E7A"]
-        icons        = ["▲", "▼", "—"]
+        if theme == 1:
+            label_colors = ["#E8A44A", "#C0523A", "#6B9E7A"]
+            title_color  = "#D4A868"
+        else:
+            label_colors = ["#00f5ff", "#ff00a0", "#b000ff"]
+            title_color  = "#cc88ff"
+
+        icons = ["▲", "▼", "—"]
         for i, (text, lc, icon) in enumerate(zip(texts, label_colors, icons)):
             offset = 0.28 * (i - (len(texts) - 1) / 2)
             ax.text(0, -offset - 0.04, f"{icon} {text}",
@@ -641,11 +653,10 @@ class Board:
             ax.text(0, -1.35, title,
                     ha="center", va="center",
                     fontsize=10, fontweight="bold",
-                    color="#D4A868", fontfamily="monospace")
+                    color=title_color, fontfamily="monospace")
         ax.axis("off")
 
-
-    def draw_charts(self):
+    def draw_charts(self, theme):
         stat_store = [
             {"games": 0, "win": 0, "loss": 0, "draw": 0},
             {"games": 0, "win": 0, "loss": 0, "draw": 0},
@@ -679,32 +690,48 @@ class Board:
 
         wingames = sorted(win_players.items(), key=lambda x: x[1], reverse=True)[:5]
 
-        BG       = "#1a0f08"
-        PANEL    = "#1e1208"
-        COPPER   = "#E8A44A"
-        RUST     = "#C0523A"
-        TEAL     = "#6B9E7A"
-        MUTED    = "#8B6040"
-        TEXT     = "#D4A868"
-        GRID_COL = "#2a1c0e"
+        # ── Theme palettes ────────────────────────────────────────────
+        if theme == 1:
+            BG       = "#1a0f08"
+            PANEL    = "#1e1208"
+            ACCENT1  = "#E8A44A"   # copper
+            ACCENT2  = "#C0523A"   # rust
+            ACCENT3  = "#6B9E7A"   # patina teal
+            MUTED    = "#8B6040"
+            TEXT     = "#D4A868"
+            GRID_COL = "#2a1c0e"
+            TITLE    = "GAME  POINT  —  STATISTICS"
+            BAR_COL  = "#C4883A"
+            DIVIDER  = "─"
+        else:  # cyberpunk
+            BG       = "#0a0015"
+            PANEL    = "#0f0020"
+            ACCENT1  = "#00f5ff"   # neon cyan
+            ACCENT2  = "#ff00a0"   # neon magenta
+            ACCENT3  = "#b000ff"   # neon purple
+            MUTED    = "#4a2060"
+            TEXT     = "#cc88ff"
+            GRID_COL = "#1a0035"
+            TITLE    = "GAME  POINT  —  STATISTICS"
+            BAR_COL  = "#00f5ff"
+            DIVIDER  = "═"
 
-        gauge_colors = [COPPER, RUST, TEAL]
+        gauge_colors = [ACCENT1, ACCENT2, ACCENT3]
 
         fig = plt.figure(figsize=(11, 7), facecolor=BG)
         fig.subplots_adjust(left=0.07, right=0.93, top=0.88, bottom=0.1,
                             hspace=0.5, wspace=0.4)
 
-        # ── Main title ──────────────────────────────────────────────
-        fig.text(0.5, 0.95, "GAME  POINT  —  STATISTICS",
+        # ── Main title ────────────────────────────────────────────────
+        fig.text(0.5, 0.95, TITLE,
                 ha="center", va="top",
                 fontsize=15, fontweight="bold",
-                color=COPPER, fontfamily="monospace"
-                )
-        fig.text(0.5, 0.915, "─" * 72,
+                color=ACCENT1, fontfamily="monospace")
+        fig.text(0.5, 0.915, DIVIDER * 72,
                 ha="center", va="top",
                 fontsize=7, color=MUTED, fontfamily="monospace")
 
-        # ── Gauge 1 ──────────────────────────────────────────────────
+        # ── Gauge 1 ───────────────────────────────────────────────────
         ax1 = fig.add_subplot(2, 3, 1)
         ax1.set_facecolor(PANEL)
         g1 = stat_store[0]
@@ -715,9 +742,10 @@ class Board:
             f"draws  {g1['draw']/g1['games']*100:.1f}%"],
             gauge_colors,
             title=self.player1,
+            theme=theme,
         )
 
-        # ── Gauge 2 ──────────────────────────────────────────────────
+        # ── Gauge 2 ───────────────────────────────────────────────────
         ax2 = fig.add_subplot(2, 3, 2)
         ax2.set_facecolor(PANEL)
         g2 = stat_store[1]
@@ -728,50 +756,51 @@ class Board:
             f"draws  {g2['draw']/g2['games']*100:.1f}%"],
             gauge_colors,
             title=self.player2,
+            theme=theme,
         )
 
-        # ── Game-type donut (top-right) ───────────────────────────────
+        # ── Game-type donut ───────────────────────────────────────────
         ax3 = fig.add_subplot(2, 3, 3)
         ax3.set_facecolor(PANEL)
-        donut_colors = [COPPER, RUST, TEAL]
-        game_labels  = ["TicTacToe", "Othello", "Connect 4"]
+        game_labels = ["TicTacToe", "Othello", "Connect 4"]
         wedges, texts, autotexts = ax3.pie(
             game_counts,
-            colors=donut_colors,
+            colors=gauge_colors,
             autopct=lambda p: f"{p:.1f}%" if p > 0 else "",
             pctdistance=0.75,
-            wedgeprops=dict(width=0.45, edgecolor="#1a0f08", linewidth=1.2),
+            wedgeprops=dict(width=0.45, edgecolor=BG, linewidth=1.2),
             startangle=90,
         )
         for at in autotexts:
             at.set_fontsize(8)
-            at.set_color("#1a0f08")
+            at.set_color(BG)
             at.set_fontweight("bold")
         ax3.legend(
             wedges, game_labels,
             loc="lower center",
             bbox_to_anchor=(0.5, -0.28),
-            ncol=1,
-            fontsize=8,
-            frameon=False,
+            ncol=1, fontsize=8, frameon=False,
             labelcolor=TEXT,
         )
         ax3.set_title("Games Played", color=TEXT, fontsize=10,
                     fontfamily="monospace", pad=8)
 
-        # ── Bar chart (bottom, full width) ───────────────────────────
+        # ── Bar chart ─────────────────────────────────────────────────
         ax4 = fig.add_subplot(2, 1, 2)
         ax4.set_facecolor(PANEL)
 
-        labels = [i[0] for i in wingames][::-1]
+        labels     = [i[0] for i in wingames][::-1]
         bar_values = [i[1] for i in wingames][::-1]
 
-        bar_colors = [COPPER, "#C4883A", RUST, "#9B3A28", TEAL][:len(labels)]
+        # Highlight current two players in ACCENT2, rest in BAR_COL
+        bar_colors = [
+            ACCENT2 if lbl in (self.player1, self.player2) else BAR_COL
+            for lbl in labels
+        ]
         bars = ax4.bar(labels, bar_values, color=bar_colors,
                     width=0.45, zorder=3,
-                    edgecolor="#1a0f08", linewidth=0.8)
+                    edgecolor=BG, linewidth=0.8)
 
-        # Value labels on top of bars
         for bar, val in zip(bars, bar_values):
             ax4.text(bar.get_x() + bar.get_width() / 2,
                     bar.get_height() + max(bar_values) * 0.02,
@@ -780,56 +809,73 @@ class Board:
                     fontsize=9, color=TEXT,
                     fontfamily="monospace", fontweight="bold")
 
-        # Horizontal grid lines only
         ax4.yaxis.grid(True, color=GRID_COL, linewidth=0.8, zorder=0)
         ax4.set_axisbelow(True)
-        ax4.set_facecolor(PANEL)
         ax4.set_xlabel("Players", color=MUTED, fontsize=10, fontfamily="monospace")
         ax4.set_ylabel("Wins",    color=MUTED, fontsize=10, fontfamily="monospace")
-        ax4.set_title("Top 5 Players by Wins",
-                    color=TEXT, fontsize=11,
+        ax4.set_title("Top 5 Players by Wins", color=TEXT, fontsize=11,
                     fontfamily="monospace", pad=10)
         ax4.tick_params(labelcolor=TEXT, labelsize=9)
         ax4.spines[:].set_visible(False)
         ax4.set_ylim(0, max(bar_values) * 1.18)
-
-        # Thin copper bottom border
         ax4.spines["bottom"].set_visible(True)
         ax4.spines["bottom"].set_color(MUTED)
         ax4.spines["bottom"].set_linewidth(0.8)
 
         return False
-
     def on_close(self, event):
         self.fig_no = -1
 
-    def show_charts(self):
+    def show_charts(self,style,event,theme):
+        if self.fig_no==1 and not self.show:
+            plot=pygame.transform.scale(pygame.image.load("./pictures/plot.png"),(0.8*self.width,0.85*self.height))
+            overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            overlay.fill((0, 6, 18, 210))
+            self.screen.blit(overlay, (0, 0))
+            self.screen.blit(plot,(0.1*self.width,0.05*self.height))
+            font=pygame.font.SysFont("Consolas",int(0.01*self.width),bold=True)
+            self.b1.assign("MAIN MENU",0.15*self.width,0.92*self.height,0.1*self.width,0.05*self.height,font,style=style)
+            self.b2.assign("QUIT",0.75*self.width,0.92*self.height,0.1*self.width,0.05*self.height,font,style=style)
+            self.b1.draw(self.screen)
+            self.b2.draw(self.screen)
+            if self.b1.handle_event(event):
+                self.chartsbut=1
+                plt.close()
+                self.fig_no=0
+                return True
+            if self.b2.handle_event(event):
+                self.chartsbut=2
+                plt.close()
+                self.fig_no=0
+                return True
         if self.fig_no == 0:
-            self.draw_charts()
+            self.draw_charts(theme)
             fig = plt.gcf()
             fig.canvas.mpl_connect('close_event', self.on_close)
             self.fig_no = 1
-            plt.show()
+            if self.show:
+                plt.show()
+            else:
+                plt.savefig("./pictures/plot.png")
         if self.fig_no == -1:
             self.fig_no = 0
             return True
         return False
 
-    def show_intermediate(self, obj, event):
-        winw=obj.playing_board.width
-        winh=obj.playing_board.height
-        rect=pygame.Rect((self.width-winw)/2,(self.height-winh)/2,winw,winh)
-        pygame.draw.rect(self.screen,(0,0,0),rect,border_radius=10)
-        font=pygame.font.SysFont("Consolas",int(12*winw/120),bold=True)
-        self.b1.assign("Main Menu",int(self.width//2-0.35*winw),int(self.height//2-0.35*winh),int(0.7*winw),int(0.25*winh),font)
-        self.b2.assign("Quit",int(self.width//2-0.35*winw),int(self.height//2+0.1*winh),int(0.7*winw),int(0.25*winh),font)
+    def show_intermediate(self, style, event):
+        self.fancy_screen([],[],[(0.2415*self.width,0.25*self.height,0.484*self.width),
+                                 (0.2415*self.width,0.5*self.height,0.484*self.width),
+                                 (0.2415*self.width,0.75*self.height,0.484*self.width)],style)
+        font=pygame.font.SysFont("Consolas",int(0.03*self.width),bold=True)
+        self.b1.assign("MAIN MENU",0.25*self.width,0.3*self.height,0.3*self.width,0.15*self.height,font,style=style,offset=-0.05*self.width)
+        self.b2.assign("QUIT",0.25*self.width,0.55*self.height,0.3*self.width,0.15*self.height,font,style=style,offset=-0.09*self.width)
         self.b1.draw(self.screen)
         self.b2.draw(self.screen)
         if self.b1.handle_event(event):
             return True
         if self.b2.handle_event(event):
             pygame.quit()
-            sys.exit()
+            sys.exit(0)
         return False
     def option_screen(self,width,height,pos,event,style=None):
         w,h=self.screen.get_size()
@@ -933,7 +979,7 @@ if __name__=="__main__":
                 fading=True
                 if o==0:
                     board.transition.start(o,"./pictures/tictactoe.png",board)
-                elif o==1:
+                if o==1:
                     board.transition.start(o,"./pictures/othello.jpg",board)
                 elif o==2:
                     board.transition.start(o,"./pictures/connect4.png",board)
@@ -950,23 +996,39 @@ if __name__=="__main__":
             elif stats:
                 if o==0:
                     style=None
+                elif o==1:
+                    style=oth.style
                 elif o==2:
                     style=con.style
                 if board.show_leaderboard(imp,style):
                     stats=False
                     charts=True
             elif charts:
-                if board.show_charts():
+                if o==0:
+                    style=None
+                    theme=2
+                if o==1:
+                    style=oth.style
+                    theme=1
+                elif o==2:
+                    style=con.style
+                    theme=1
+                if board.show_charts(style,imp,theme):
                     charts=False
-                    intermediate=True
+                    if board.chartsbut==0:
+                        intermediate=True
+                    elif board.chartsbut==1:
+                        is_menu=True
+                    else:
+                        break
             elif intermediate:
                 if o==0:
-                    obj=tic
+                    style=None
                 elif o==1:
-                    obj=oth
+                    style=oth.style
                 elif o==2:
-                    obj=con
-                if board.show_intermediate(obj,imp):
+                    style=con.style
+                if board.show_intermediate(style,imp):
                     intermediate=False
                     is_menu=True
                     board=Board(board.player1,board.player2,width,height,None)

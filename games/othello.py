@@ -622,7 +622,7 @@ class Othello(Board):
 				self.anim_start_t=time.time()
 				self.target={key:[val[0], val[1]] for key,val in dest_pos.items()}
 				self.escaped={key:np.add([i,j], self.stepd[key]) for key in self.stepd}
-				self.flipper() #TODO
+				self.flipper()
 				if self.turn==1: self.p1used+=1
 				else: self.p2used+=1
 					#increment self.piused
@@ -634,7 +634,8 @@ class Othello(Board):
 				#commit turn_change 
 				#turn_change() called in ../game.py
 		else:
-			self.flipper() #TODO
+			self.display_log()
+			self.flipper()
 
 	def win_check(self, turn): #the variable turn is taken just to match game.py
 		''' checks if game over
